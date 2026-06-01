@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EPUB Editor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@300;400&display=swap');
+:root{
+  --bg:#0e0e11;--surface:#16161a;--card:#1e1e24;--border:#2c2c35;
+  --accent:#c8a96e;--accent2:#7c6fcd;--text:#e8e6e0;--muted:#6b6975;
+  --danger:#c0392b;--success:#27ae60;--r:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:13px}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;line-height:1.6;min-height:100vh;}
+header{border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px;background:var(--surface);}
+header h1{font-family:'Playfair Display',serif;font-size:19px;font-weight:600;color:var(--accent);}
+.ver{font-size:10px;color:var(--muted);background:var(--border);padding:2px 7px;border-radius:4px;}
+nav{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 20px;}
+nav button{background:none;border:none;color:var(--muted);font-family:inherit;font-size:11px;padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;letter-spacing:.5px;text-transform:uppercase;}
+nav button:hover{color:var(--text)}nav button.active{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding:16px 20px;max-width:1100px;margin:0 auto}
+.tab{display:none}.tab.active{display:block}
+.sec{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;}
+.stitle{font-family:'Playfair Display',serif;font-size:15px;color:var(--accent);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.dz{border:2px dashed var(--border);border-radius:var(--r);padding:28px 20px;text-align:center;cursor:pointer;transition:all .25s;color:var(--muted);background:var(--surface);}
+.dz:hover,.dz.dg{border-color:var(--accent);color:var(--text);background:rgba(200,169,110,.04);}
+.dz-ico{font-size:28px;margin-bottom:6px;opacity:.6}.dz input{display:none}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.row1{grid-template-columns:1fr}
+.fg{display:flex;flex-direction:column;gap:5px}
+label,lbl{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+input[type=text],input[type=number],select{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;transition:border-color .2s;width:100%;}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=color]{background:var(--surface);border:1px solid var(--border);border-radius:6px;height:34px;width:100%;padding:2px;cursor:pointer;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;border:none;font-family:inherit;font-size:11px;cursor:pointer;letter-spacing:.4px;transition:all .2s;text-transform:uppercase;}
+.bp{background:var(--accent);color:#111}.bp:hover{background:#d4b980}
+.bs{background:var(--border);color:var(--text)}.bs:hover{background:#3a3a45}
+.bd{background:rgba(192,57,43,.15);color:#e74c3c;border:1px solid rgba(192,57,43,.25)}.bd:hover{background:rgba(192,57,43,.25)}
+.b2{background:var(--accent2);color:#fff}.b2:hover{background:#9187d9}
+.bsm{padding:5px 10px;font-size:10px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.bg{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+
+/* ══ COVER EDITOR LAYOUT ══ */
+.ced{display:grid;grid-template-columns:1fr 290px;gap:16px;align-items:start;}
+
+/* ══ STAGE (canvas + crop overlay) ══ */
+.stage-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;}
+.stage-hint{font-size:10px;color:var(--muted);text-align:center;line-height:1.9}
+/* Контейнер для canvas + crop overlay */
+.stage-inner{position:relative;display:flex;justify-content:center;align-items:center;background:#111;border-radius:6px;overflow:hidden;}
+/* Canvas всегда рисуется в реальном разрешении изображения, CSS масштабирует */
+#cvs{display:block;cursor:default;touch-action:none;max-width:100%;max-height:460px;width:auto;height:auto;}
+/* Затемнение зон вне рамки обрезки */
+.crop-overlay{position:absolute;inset:0;pointer-events:none;display:none;}
+.crop-overlay.visible{display:block;}
+.crop-ol-top,.crop-ol-bot,.crop-ol-left,.crop-ol-right{position:absolute;background:rgba(0,0,0,.55);}
+.crop-ol-top{top:0;left:0;right:0;}
+.crop-ol-bot{bottom:0;left:0;right:0;}
+.crop-ol-left{top:0;bottom:0;left:0;}
+.crop-ol-right{top:0;bottom:0;right:0;}
+/* Рамка обрезки */
+.crop-frame{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 1px rgba(200,169,110,.3);pointer-events:none;}
+
+/* ══ SIDE PANEL ══ */
+.side{display:flex;flex-direction:column;gap:10px;}
+.pb{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;}
+.pbt{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px;}
+.ll{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.li{display:flex;align-items:center;gap:7px;padding:6px 9px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;user-select:none;}
+.li:hover{border-color:var(--muted)}.li.sel{border-color:var(--accent);background:rgba(200,169,110,.07)}
+.llbl{flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ldel{font-size:11px;cursor:pointer;color:var(--danger);opacity:.6;flex-shrink:0;padding:0 2px;}.ldel:hover{opacity:1}
+.nol{font-size:11px;color:var(--muted);text-align:center;padding:8px 0;}
+.pg2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
+.pg{display:flex;flex-direction:column;gap:4px}
+.pl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.abg{display:flex;gap:3px}
+.ab{flex:1;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:12px;padding:4px;cursor:pointer;transition:all .15s;}
+.ab:hover,.ab.on{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,.08)}
+
+/* ══ MERGE ══ */
+#mlist{list-style:none;display:flex;flex-direction:column;gap:7px}
+#mlist li{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:grab;user-select:none;transition:border-color .2s;}
+#mlist li:hover{border-color:var(--accent2)}
+#mlist li.dg2{opacity:.4;border-color:var(--accent)}
+#mlist li.dov{border-color:var(--accent2);background:rgba(124,111,205,.08)}
+.dh{color:var(--muted);font-size:14px}.fi{flex:1}.fn{font-size:12px}.fm{font-size:10px;color:var(--muted);margin-top:1px}
+.fnum{width:22px;height:22px;border-radius:50%;background:var(--accent2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+
+/* ══ TOAST ══ */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 18px;font-size:11px;max-width:320px;z-index:9999;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.err{border-color:var(--danger);color:#e74c3c}
+#toast.ok{border-color:var(--success);color:#2ecc71}
+.ld{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mbadge{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:10px;color:var(--muted);margin:0 6px 5px 0;}
+.mbadge span{color:var(--text)}
+.pbar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:10px;display:none}
+.pbar.on{display:block}
+.pfill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .4s;border-radius:2px;}
+.hr{border:none;border-top:1px solid var(--border);margin:10px 0}
+.hint{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ══ MODAL (crop) ══ */
+.mov{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;display:none;align-items:center;justify-content:center;}
+.mov.open{display:flex}
+.mdl{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;max-width:92vw;max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:14px;min-width:300px;}
+.mtitle{font-family:'Playfair Display',serif;font-size:15px;color:var(--accent)}
+.cw img{max-width:100%;display:block}
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:860px){
+  .ced{grid-template-columns:1fr;}
+  .side{flex-direction:row;flex-wrap:wrap;}
+  .side .pb{flex:1;min-width:240px;}
+  #cvs{max-height:340px;}
+}
+@media(max-width:560px){
+  main{padding:10px 12px}
+  header{padding:10px 14px}
+  nav{padding:0 12px}
+  header h1{font-size:16px}
+  .sec{padding:12px}
+  .row2{grid-template-columns:1fr}
+  .pg2{grid-template-columns:1fr}
+  .side{flex-direction:column;}
+  .side .pb{min-width:unset;width:100%;}
+  #cvs{max-height:260px;}
+  .ced{gap:10px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📖 EPUB Editor</h1><span class="ver">web</span>
+</header>
+<nav>
+  <button class="active" data-tab="ed">Редактор</button>
+  <button data-tab="mg">Объединение</button>
+</nav>
+<main>
+
+<!-- ═══════ РЕДАКТОР ═══════ -->
+<div id="tab-ed" class="tab active">
+
+  <div class="sec">
+    <div class="stitle">Загрузка файла</div>
+    <div class="dz" id="ddrop">
+      <input type="file" id="dinput" accept=".epub"/>
+      <div class="dz-ico">📂</div>
+      <p>Перетащите .epub сюда или <strong>нажмите для выбора</strong></p>
+    </div>
+    <div id="emeta" style="display:none;margin-top:10px"><div id="ebadges"></div></div>
+  </div>
+
+  <div class="sec" id="smeta" style="display:none">
+    <div class="stitle">Метаданные</div>
+    <div class="row2">
+      <div class="fg"><label>Название книги</label><input type="text" id="mtitle" placeholder="Введите название"/></div>
+      <div class="fg"><label>Автор</label><input type="text" id="mauthor" placeholder="Введите автора"/></div>
+    </div>
+  </div>
+
+  <!-- Редактор обложки -->
+  <div class="sec" id="scover" style="display:none">
+    <div class="stitle">Редактор обложки</div>
+    <div class="ced">
+
+      <!-- ── Левая: canvas + crop overlay ── -->
+      <div class="stage-wrap">
+        <div class="bg" style="justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div class="bg">
+            <input type="file" id="cfile" accept="image/*" style="display:none"/>
+            <button class="btn bs bsm" onclick="document.getElementById('cfile').click()">📁 Изображение</button>
+            <button class="btn bs bsm" id="bcrop" style="display:none" onclick="openCrop()">✂️ Обрезать</button>
+            <button class="btn b2 bsm" id="bapplycrop" style="display:none" onclick="confirmCropOverlay()">✓ Применить обрезку</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <label style="white-space:nowrap;margin:0">Соотношение:</label>
+            <select id="aratio" style="width:auto;padding:6px 9px;font-size:11px" onchange="onRatioChange()">
+              <option value="0.6667">2 : 3 — книга</option>
+              <option value="0.636">0.636 — стандарт</option>
+              <option value="0.75">3 : 4</option>
+              <option value="1">1 : 1 — квадрат</option>
+              <option value="0.5625">9 : 16</option>
+              <option value="1.7778">16 : 9</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Canvas + overlay рамки обрезки -->
+        <div class="stage-inner" id="stageInner">
+          <canvas id="cvs"></canvas>
+          <!-- Затемнение зон вне кадра -->
+          <div class="crop-overlay" id="cropOverlay">
+            <div class="crop-ol-top"  id="olTop"></div>
+            <div class="crop-ol-bot"  id="olBot"></div>
+            <div class="crop-ol-left" id="olLeft"></div>
+            <div class="crop-ol-right" id="olRight"></div>
+            <div class="crop-frame"   id="cropFrame"></div>
+          </div>
+        </div>
+
+        <div class="stage-hint">
+          🖱 Перетащи текст · ↔ Угловые точки — масштаб · 🔄 Верхняя точка — поворот · ✏️ Двойной клик — изменить текст
+        </div>
+      </div>
+
+      <!-- ── Правая: панель ── -->
+      <div class="side">
+
+        <div class="pb">
+          <div class="pbt">Текстовые слои</div>
+          <div class="ll" id="llist"><div class="nol" id="llempty">Нажмите «+ Добавить текст»</div></div>
+          <button class="btn b2 bsm" style="width:100%;justify-content:center" onclick="addLayer()">+ Добавить текст</button>
+        </div>
+
+        <div class="pb" id="ppanel" style="display:none">
+          <div class="pbt">Свойства слоя</div>
+          <div class="fg" style="margin-bottom:8px">
+            <div class="pl">Текст</div>
+            <input type="text" id="ptxt" placeholder="Введите текст..." oninput="upd('text',this.value)"/>
+          </div>
+          <div class="pg2">
+            <div class="pg"><div class="pl">Размер (px)</div><input type="number" id="psize" min="4" max="800" oninput="upd('size',+this.value)"/></div>
+            <div class="pg"><div class="pl">Цвет</div><input type="color" id="pcolor" oninput="upd('color',this.value)"/></div>
+          </div>
+          <div class="pg" style="margin-bottom:8px">
+            <div class="pl">Выравнивание</div>
+            <div class="abg">
+              <button class="ab" data-a="left"   onclick="setAlign('left')">⬛⬜⬜</button>
+              <button class="ab" data-a="center" onclick="setAlign('center')">⬜⬛⬜</button>
+              <button class="ab" data-a="right"  onclick="setAlign('right')">⬜⬜⬛</button>
+            </div>
+          </div>
+          <div class="pg" style="margin-bottom:8px">
+            <div class="pl">Шрифт</div>
+            <div style="display:flex;gap:5px">
+              <select id="pfont" style="flex:1;font-size:11px" onchange="upd('fontId',this.value)"><option value="">— Системный —</option></select>
+              <button class="btn bs bsm" onclick="document.getElementById('fup').click()">↑</button>
+              <input type="file" id="fup" accept=".ttf,.otf" style="display:none"/>
+            </div>
+            <div class="hint">TTF/OTF для кириллицы</div>
+          </div>
+          <div class="pg2">
+            <div class="pg"><div class="pl">Тень</div>
+              <select id="pshad" onchange="upd('shadow',this.value)">
+                <option value="none">Нет</option><option value="soft" selected>Мягкая</option>
+                <option value="hard">Жёсткая</option><option value="glow">Свечение</option>
+              </select>
+            </div>
+            <div class="pg"><div class="pl">Прозрачность %</div><input type="number" id="popac" min="0" max="100" value="100" oninput="upd('opacity',+this.value)"/></div>
+          </div>
+          <div class="hr"></div>
+          <button class="btn bd bsm" style="width:100%;justify-content:center" onclick="delSel()">🗑 Удалить слой</button>
+        </div>
+
+        <div class="pb">
+          <div class="pbt">Управление</div>
+          <div style="font-size:10px;color:var(--muted);line-height:2.1">
+            <div>🖱 <b style="color:var(--text)">Drag</b> — перемещение</div>
+            <div>↔ <b style="color:var(--text)">Угловые точки</b> — масштаб</div>
+            <div>🔄 <b style="color:var(--text)">Верхняя точка</b> — поворот</div>
+            <div>✏️ <b style="color:var(--text)">Двойной клик</b> — изменить текст</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ssave" style="display:none">
+    <div class="bg">
+      <button class="btn bp" onclick="saveEpub()" id="bsave"><span>💾 Сохранить EPUB</span><div class="ld" id="sload"></div></button>
+      <button class="btn bs" onclick="resetEd()">Сбросить</button>
+    </div>
+    <div class="pbar" id="spbar"><div class="pfill" id="spfill"></div></div>
+  </div>
+</div>
+
+<!-- ═══════ ОБЪЕДИНЕНИЕ ═══════ -->
+<div id="tab-mg" class="tab">
+  <div class="sec">
+    <div class="stitle">Файлы для объединения</div>
+    <div class="dz" id="mdrop">
+      <input type="file" id="minput" accept=".epub" multiple/>
+      <div class="dz-ico">📚</div>
+      <p>Перетащите несколько .epub или <strong>нажмите для выбора</strong></p>
+      <p style="margin-top:5px;font-size:10px;color:var(--muted)">Минимум 2 файла</p>
+    </div>
+  </div>
+  <div class="sec" id="smord" style="display:none">
+    <div class="stitle">Порядок объединения</div>
+    <p style="font-size:10px;color:var(--muted);margin-bottom:12px">Перетащите книги для изменения порядка</p>
+    <ul id="mlist"></ul>
+  </div>
+  <div class="sec" id="smset" style="display:none">
+    <div class="stitle">Параметры итоговой книги</div>
+    <div class="row2">
+      <div class="fg"><label>Название</label><input type="text" id="mgtitle" placeholder="Объединённая книга"/></div>
+      <div class="fg"><label>Автор</label><input type="text" id="mgauth"/></div>
+    </div>
+    <div class="row2 row1">
+      <div class="fg"><label>Имя файла</label><input type="text" id="mgfile" value="merged.epub"/></div>
+    </div>
+  </div>
+  <div id="smbtn" style="display:none">
+    <div class="bg">
+      <button class="btn bp" onclick="execMerge()" id="bmerge"><span>🔗 Объединить</span><div class="ld" id="mload"></div></button>
+      <button class="btn bs" onclick="resetMg()">Сбросить</button>
+    </div>
+    <div class="pbar" id="mpbar"><div class="pfill" id="mpfill"></div></div>
+  </div>
+</div>
+
+</main>
+
+<!-- Crop Modal (fallback для старых epub без cover) -->
+<div class="mov" id="cropMdl">
+  <div class="mdl">
+    <div class="mtitle">✂️ Обрезка (модальное окно)</div>
+    <div class="cw"><img id="cropImg" src="" alt="crop"/></div>
+    <div class="bg">
+      <button class="btn bp" onclick="applyCropModal()">Применить</button>
+      <button class="btn bs" onclick="closeCropModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// СОСТОЯНИЕ
+// ═══════════════════════════════════════════
+const S = {
+  zip:null, opfPath:null, fname:null,
+  coverPathInZip:null,   // точный путь обложки внутри zip как он есть
+  coverItemId:null,      // id элемента в манифесте
+  rawImg:null,           // исходный ImageBitmap (полное изображение)
+  croppedImg:null,       // ImageBitmap после подтверждённой обрезки (или null)
+  // Рамка кропа (в пикселях исходного изображения)
+  cropBox:null,          // {x,y,w,h} в координатах rawImg
+  layers:[],
+  selId:null,
+  fonts:{}, otf:{},
+  mg:{files:[]},
+};
+
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+let lid = 0;
+
+// Размер canvas в px (display-координаты)
+const DISP_MAX_W = 480;
+const DISP_MAX_H = 460;
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+let _tt;
+function toast(m,t=''){
+  const el=document.getElementById('toast');
+  el.textContent=m; el.className='show '+(t==='err'?'err':t==='ok'?'ok':'');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.className='',4000);
+}
+function show(id){const e=document.getElementById(id);if(e)e.style.display='block';}
+function hide(id){const e=document.getElementById(id);if(e)e.style.display='none';}
+function setLd(li,bi,on){document.getElementById(li).style.display=on?'block':'none';document.getElementById(bi).disabled=on;}
+function startPb(pb,pf){show(pb);document.getElementById(pb).classList.add('on');document.getElementById(pf).style.width='0%';}
+function stopPb(pb,pf){document.getElementById(pf).style.width='100%';setTimeout(()=>{document.getElementById(pb).classList.remove('on');document.getElementById(pf).style.width='0%';},700);}
+function dl(blob,name){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(u),1000);}
+function eh(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function safeFilename(s){return String(s||'').replace(/[\\/:*?"<>|]/g,'_').trim();}
+
+// ═══════════════════════════════════════════
+// ВКЛАДКИ
+// ═══════════════════════════════════════════
+document.querySelectorAll('nav button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════
+// DROP ZONES
+// ═══════════════════════════════════════════
+function setupDrop(zid,iid,fn){
+  const z=document.getElementById(zid),inp=document.getElementById(iid);
+  z.addEventListener('click',()=>inp.click());
+  inp.addEventListener('change',()=>fn(inp.files));
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('dg');});
+  z.addEventListener('dragleave',()=>z.classList.remove('dg'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('dg');fn(e.dataTransfer.files);});
+}
+setupDrop('ddrop','dinput',loadEpub);
+setupDrop('mdrop','minput',loadMergeFiles);
+
+// ═══════════════════════════════════════════
+// EPUB HELPERS
+// ═══════════════════════════════════════════
+async function findOpf(zip){
+  const x=await zip.file('META-INF/container.xml').async('string');
+  const d=new DOMParser().parseFromString(x,'application/xml');
+  const rf=d.querySelector('rootfile');
+  if(!rf) throw new Error('rootfile не найден');
+  return rf.getAttribute('full-path');
+}
+function opfDirOf(p){const a=p.split('/');a.pop();return a.join('/');}
+function parseMeta(d){return{title:d.querySelector('title')?.textContent.trim()||'',author:d.querySelector('creator')?.textContent.trim()||''};}
+
+// Ищем обложку, возвращаем {pathInZip, itemId, href}
+function findCoverInfo(od, dir){
+  // Способ 1: meta name="cover"
+  const mc=od.querySelector('meta[name="cover"]');
+  if(mc){
+    const id=mc.getAttribute('content');
+    const it=od.querySelector(`item[id="${id}"]`);
+    if(it){
+      const href=it.getAttribute('href');
+      const full=dir?`${dir}/${href}`:href;
+      return{pathInZip:full, itemId:id, href};
+    }
+  }
+  // Способ 2: properties="cover-image"
+  const ci=od.querySelector('item[properties~="cover-image"]');
+  if(ci){
+    const href=ci.getAttribute('href');
+    const full=dir?`${dir}/${href}`:href;
+    return{pathInZip:full, itemId:ci.getAttribute('id'), href};
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+// ЗАГРУЗКА EPUB
+// ═══════════════════════════════════════════
+async function loadEpub(files){
+  const f=files[0];
+  if(!f||!f.name.endsWith('.epub')){toast('Выберите .epub файл','err');return;}
+  try{
+    const ab=await f.arrayBuffer();
+    const zip=await JSZip.loadAsync(ab);
+    const op=await findOpf(zip);
+    const opfXml=await zip.file(op).async('string');
+    const od=new DOMParser().parseFromString(opfXml,'application/xml');
+    const meta=parseMeta(od);
+    const dir=opfDirOf(op);
+    const covInfo=findCoverInfo(od,dir);
+
+    S.zip=zip; S.opfPath=op; S.fname=f.name;
+    S.coverPathInZip=covInfo?covInfo.pathInZip:null;
+    S.coverItemId=covInfo?covInfo.itemId:null;
+    S.rawImg=null; S.croppedImg=null; S.cropBox=null;
+
+    document.getElementById('ebadges').innerHTML=`
+      <div class="mbadge">Файл: <span>${f.name}</span></div>
+      <div class="mbadge">Название: <span>${meta.title||'—'}</span></div>
+      <div class="mbadge">Автор: <span>${meta.author||'—'}</span></div>`;
+    show('emeta');
+    document.getElementById('mtitle').value=meta.title;
+    document.getElementById('mauthor').value=meta.author;
+
+    if(covInfo){
+      // Ищем файл обложки в zip (с нормализацией слешей)
+      let coverFile=zip.file(covInfo.pathInZip);
+      if(!coverFile) coverFile=zip.file(covInfo.href);
+      if(coverFile){
+        const blob=await coverFile.async('blob');
+        S.rawImg=await createImageBitmap(blob);
+        initCropBox();
+      }
+    }
+
+    show('smeta'); show('scover'); show('ssave');
+    document.getElementById('bcrop').style.display='inline-flex';
+    initCanvas();
+    toast('Файл загружен','ok');
+  }catch(e){toast('Ошибка: '+e.message,'err');console.error(e);}
+}
+
+// ═══════════════════════════════════════════
+// CANVAS — РАЗМЕР И РЕНДЕР
+// ═══════════════════════════════════════════
+
+// Вычисляем размер canvas исходя из изображения и ограничений экрана
+function calcCanvasSize(){
+  const ratio=parseFloat(document.getElementById('aratio').value);
+  // Если есть изображение — используем его пропорции
+  const imgW = S.rawImg ? S.rawImg.width  : Math.round(DISP_MAX_H * ratio);
+  const imgH = S.rawImg ? S.rawImg.height : DISP_MAX_H;
+
+  // Масштабируем чтобы вписать в DISP_MAX_W x DISP_MAX_H
+  const scaleW = DISP_MAX_W / imgW;
+  const scaleH = DISP_MAX_H / imgH;
+  const scale  = Math.min(scaleW, scaleH, 1); // не увеличиваем маленькие
+  return {
+    w: Math.round(imgW * scale),
+    h: Math.round(imgH * scale),
+    scale,
+  };
+}
+
+function initCanvas(){
+  const {w,h}=calcCanvasSize();
+  cvs.width=w; cvs.height=h;
+  updateCropOverlay();
+  redraw();
+}
+
+function onRatioChange(){
+  initCropBox();
+  initCanvas();
+}
+
+// ═══════════════════════════════════════════
+// CROP BOX (рамка обрезки поверх полного изображения)
+// ═══════════════════════════════════════════
+
+// Инициализируем cropBox по выбранному соотношению сторон
+function initCropBox(){
+  if(!S.rawImg){S.cropBox=null;return;}
+  const ratio=parseFloat(document.getElementById('aratio').value);
+  const iw=S.rawImg.width, ih=S.rawImg.height;
+
+  // Вписываем рамку с нужным соотношением в изображение
+  let bw, bh;
+  if(iw/ih > ratio){
+    // Изображение шире — ограничиваем по высоте
+    bh=ih; bw=Math.round(ih*ratio);
+  } else {
+    bw=iw; bh=Math.round(iw/ratio);
+  }
+  S.cropBox={x:Math.round((iw-bw)/2), y:Math.round((ih-bh)/2), w:bw, h:bh};
+}
+
+// Обновляем CSS-позиции затемнения и рамки
+function updateCropOverlay(){
+  const ol=document.getElementById('cropOverlay');
+  if(!S.rawImg||!S.cropBox){ol.classList.remove('visible');return;}
+
+  const {w:cw,h:ch}=calcCanvasSize();
+  const {scale}=calcCanvasSize();
+  const iw=S.rawImg.width, ih=S.rawImg.height;
+
+  // Позиция рамки в display-px
+  const fx=S.cropBox.x*scale;
+  const fy=S.cropBox.y*scale;
+  const fw=S.cropBox.w*scale;
+  const fh=S.cropBox.h*scale;
+
+  // canvas занимает cw x ch внутри stage-inner
+  // затемнение относительно canvas
+  const top=fy, bot=ch-fy-fh, left=fx, right=cw-fx-fw;
+
+  document.getElementById('olTop').style.cssText   =`height:${top}px`;
+  document.getElementById('olBot').style.cssText   =`height:${bot}px`;
+  document.getElementById('olLeft').style.cssText  =`width:${left}px;top:${top}px;bottom:${bot}px`;
+  document.getElementById('olRight').style.cssText =`width:${right}px;top:${top}px;bottom:${bot}px`;
+  document.getElementById('cropFrame').style.cssText=`left:${fx}px;top:${fy}px;width:${fw}px;height:${fh}px`;
+
+  ol.classList.add('visible');
+  show('bapplycrop');
+}
+
+// Применяем обрезку — вырезаем cropBox из rawImg
+async function confirmCropOverlay(){
+  if(!S.rawImg||!S.cropBox){toast('Нет изображения','err');return;}
+  const {x,y,w,h}=S.cropBox;
+  const tmp=document.createElement('canvas');
+  tmp.width=w; tmp.height=h;
+  tmp.getContext('2d').drawImage(S.rawImg,x,y,w,h,0,0,w,h);
+  S.croppedImg=await createImageBitmap(tmp);
+  // Прячем оверлей — теперь canvas показывает только обрезанное
+  document.getElementById('cropOverlay').classList.remove('visible');
+  hide('bapplycrop');
+  // Пересчитываем canvas под новое соотношение
+  const ratio=parseFloat(document.getElementById('aratio').value);
+  const dh=Math.min(DISP_MAX_H, S.croppedImg.height);
+  const dw=Math.round(dh*ratio);
+  cvs.width=dw; cvs.height=dh;
+  redraw();
+  toast('Обрезка применена','ok');
+}
+
+// ═══════════════════════════════════════════
+// РЕНДЕР CANVAS
+// ═══════════════════════════════════════════
+function redraw(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  // Выбираем источник: croppedImg > rawImg > заглушка
+  const src=S.croppedImg||S.rawImg;
+  if(src){
+    ctx.drawImage(src,0,0,cvs.width,cvs.height);
+  } else {
+    ctx.fillStyle='#2a2030';ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle='#555';ctx.font='11px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Загрузите изображение обложки',cvs.width/2,cvs.height/2);
+  }
+
+  S.layers.forEach(l=>drawLayer(l,l.id===S.selId));
+}
+
+function drawLayer(l,sel){
+  ctx.save();
+  ctx.translate(l.x,l.y);
+  ctx.rotate(l.rot||0);
+  ctx.globalAlpha=(l.opacity||100)/100;
+  const font=l.fontId&&S.otf[l.fontId]?S.otf[l.fontId]:null;
+  const sz=l.size||48;
+  const lines=(l.text||'').split('\n');
+  const lh=sz*1.22;
+  const totalH=lh*lines.length;
+  const widths=lines.map(ln=>mW(ctx,font,ln,sz));
+  const maxW=Math.max(...widths,1);
+  l._bw=maxW; l._bh=totalH;
+  setShadow(ctx,l.shadow||'soft');
+  let cy=-totalH/2+sz*0.82;
+  lines.forEach((ln,i)=>{
+    const lw=widths[i];
+    let ox=0;
+    if(l.align==='center') ox=-lw/2;
+    else if(l.align==='right') ox=-lw;
+    if(font){ctx.fillStyle=l.color||'#fff';font.draw(ctx,ln,ox,cy,sz);}
+    else{ctx.font=`${sz}px serif`;ctx.fillStyle=l.color||'#fff';ctx.textAlign=l.align||'center';ctx.textBaseline='alphabetic';ctx.fillText(ln,0,cy);}
+    cy+=lh;
+  });
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+  if(sel) drawSel(l,maxW,totalH);
+  ctx.restore();
+}
+
+function setShadow(c,t){
+  if(t==='none'){c.shadowColor='transparent';c.shadowBlur=0;return;}
+  if(t==='soft'){c.shadowColor='rgba(0,0,0,.7)';c.shadowBlur=14;c.shadowOffsetX=2;c.shadowOffsetY=2;}
+  if(t==='hard'){c.shadowColor='rgba(0,0,0,.95)';c.shadowBlur=2;c.shadowOffsetX=3;c.shadowOffsetY=3;}
+  if(t==='glow'){c.shadowColor='rgba(200,169,110,.85)';c.shadowBlur=22;c.shadowOffsetX=0;c.shadowOffsetY=0;}
+}
+
+const HR=7;
+function drawSel(l,bw,bh){
+  const hw=bw/2+12,hh=bh/2+10;
+  ctx.save();
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(200,169,110,.85)';ctx.lineWidth=1.5;
+  ctx.setLineDash([5,3]);ctx.strokeRect(-hw,-hh,hw*2,hh*2);ctx.setLineDash([]);
+  [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].forEach(([cx,cy])=>dot(ctx,cx,cy,'#c8a96e'));
+  dot(ctx,0,-hh-22,'#7c6fcd','⟳');
+  ctx.restore();
+}
+
+function dot(c,x,y,col,lbl){
+  c.beginPath();c.arc(x,y,HR,0,Math.PI*2);c.fillStyle=col;c.fill();
+  c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();
+  if(lbl){c.fillStyle='#fff';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(lbl,x,y);}
+}
+
+function mW(c,font,text,sz){
+  if(!text) return 0;
+  if(font){try{const bb=font.getPath(text,0,0,sz).getBoundingBox();return Math.max(bb.x2-bb.x1,1);}catch{return sz*text.length*0.5;}}
+  c.font=`${sz}px serif`;return c.measureText(text).width||1;
+}
+
+// ═══════════════════════════════════════════
+// DRAG INTERACTION
+// ═══════════════════════════════════════════
+let drag=null;
+cvs.addEventListener('mousedown',onDown);
+cvs.addEventListener('mousemove',onMove);
+cvs.addEventListener('mouseup',onUp);
+cvs.addEventListener('mouseleave',onUp);
+cvs.addEventListener('dblclick',onDbl);
+cvs.addEventListener('touchstart',e=>{e.preventDefault();onDown(te(e));},{passive:false});
+cvs.addEventListener('touchmove',e=>{e.preventDefault();onMove(te(e));},{passive:false});
+cvs.addEventListener('touchend',e=>{onUp(te(e));},{passive:false});
+
+function te(e){const t=e.touches[0]||e.changedTouches[0];return{clientX:t.clientX,clientY:t.clientY};}
+function cxy(e){const r=cvs.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function toLoc(l,px,py){const dx=px-l.x,dy=py-l.y,c=Math.cos(-(l.rot||0)),s=Math.sin(-(l.rot||0));return{x:c*dx-s*dy,y:s*dx+c*dy};}
+function toWorld(l,lx,ly){const c=Math.cos(l.rot||0),s=Math.sin(l.rot||0);return{x:l.x+c*lx-s*ly,y:l.y+s*lx+c*ly};}
+
+function getHandles(l){
+  if(!l._bw) return [];
+  const hw=l._bw/2+12,hh=l._bh/2+10;
+  return [{lx:-hw,ly:-hh,t:'sc',ci:0},{lx:hw,ly:-hh,t:'sc',ci:1},{lx:hw,ly:hh,t:'sc',ci:2},{lx:-hw,ly:hh,t:'sc',ci:3},{lx:0,ly:-hh-22,t:'rot'}];
+}
+function hitH(l,lx,ly){for(const h of getHandles(l))if(Math.hypot(lx-h.lx,ly-h.ly)<HR+5) return h;return null;}
+function hitL(l,px,py){const{x:lx,y:ly}=toLoc(l,px,py);if(!l._bw) return false;return Math.abs(lx)<l._bw/2+14&&Math.abs(ly)<l._bh/2+12;}
+
+function onDown(e){
+  const{x,y}=cxy(e);
+  const sel=S.layers.find(l=>l.id===S.selId);
+  if(sel){
+    const{x:lx,y:ly}=toLoc(sel,x,y);
+    const h=hitH(sel,lx,ly);
+    if(h){
+      if(h.t==='rot'){drag={t:'rot',l:sel,a0:Math.atan2(y-sel.y,x-sel.x)-(sel.rot||0)};}
+      else{
+        const opp=[2,3,0,1][h.ci];
+        const oh=getHandles(sel)[opp];
+        const ow=toWorld(sel,oh.lx,oh.ly);
+        drag={t:'sc',l:sel,ow,d0:Math.hypot(x-ow.x,y-ow.y),s0:sel.size,bw0:sel._bw||20};
+      }
+      return;
+    }
+  }
+  for(let i=S.layers.length-1;i>=0;i--){
+    const l=S.layers[i];
+    if(hitL(l,x,y)){selLayer(l.id);drag={t:'mv',l,ox:x-l.x,oy:y-l.y};return;}
+  }
+  selLayer(null);
+}
+
+function onMove(e){
+  if(!drag){updCur(e);return;}
+  const{x,y}=cxy(e);
+  if(drag.t==='mv'){drag.l.x=x-drag.ox;drag.l.y=y-drag.oy;}
+  else if(drag.t==='rot'){drag.l.rot=Math.atan2(y-drag.l.y,x-drag.l.x)-drag.a0;}
+  else if(drag.t==='sc'){
+    const dist=Math.hypot(x-drag.ow.x,y-drag.ow.y);
+    if(drag.d0<1) return;
+    const r=dist/drag.d0;
+    drag.l.size=Math.max(4,Math.round(drag.s0*r));
+    drag.l._bw=drag.bw0*r;
+    drag.l.x=(drag.ow.x+x)/2;drag.l.y=(drag.ow.y+y)/2;
+    const ps=document.getElementById('psize');
+    if(ps&&drag.l.id===S.selId) ps.value=drag.l.size;
+  }
+  redraw();
+}
+
+function onUp(){drag=null;}
+
+function updCur(e){
+  const{x,y}=cxy(e);
+  const sel=S.layers.find(l=>l.id===S.selId);
+  if(sel){
+    const{x:lx,y:ly}=toLoc(sel,x,y);
+    const h=hitH(sel,lx,ly);
+    if(h){cvs.style.cursor=h.t==='rot'?'crosshair':'nwse-resize';return;}
+    if(hitL(sel,x,y)){cvs.style.cursor='move';return;}
+  }
+  for(let i=S.layers.length-1;i>=0;i--)if(hitL(S.layers[i],x,y)){cvs.style.cursor='pointer';return;}
+  cvs.style.cursor='default';
+}
+
+function onDbl(e){
+  const{x,y}=cxy(e);
+  for(let i=S.layers.length-1;i>=0;i--){
+    const l=S.layers[i];
+    if(hitL(l,x,y)){
+      selLayer(l.id);
+      const t=prompt('Изменить текст:',l.text);
+      if(t!==null){l.text=t;const el=document.getElementById('ptxt');if(el) el.value=t;redraw();}
+      return;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// СЛОИ
+// ═══════════════════════════════════════════
+function makeLayer(){
+  return{id:++lid,text:'Текст',x:cvs.width/2,y:cvs.height*0.85,size:Math.round(cvs.height*0.08),color:'#ffffff',fontId:'',align:'center',shadow:'soft',opacity:100,rot:0,_bw:null,_bh:null};
+}
+function addLayer(){const l=makeLayer();S.layers.push(l);selLayer(l.id);renderLL();redraw();}
+function delSel(){if(!S.selId) return;S.layers=S.layers.filter(l=>l.id!==S.selId);S.selId=null;hide('ppanel');renderLL();redraw();}
+function deleteLayer(id){S.layers=S.layers.filter(l=>l.id!==id);if(S.selId===id){S.selId=null;hide('ppanel');}renderLL();redraw();}
+function selLayer(id){
+  S.selId=id;renderLL();
+  if(id){const l=S.layers.find(x=>x.id===id);if(l){fillProps(l);show('ppanel');}}
+  else hide('ppanel');
+  redraw();
+}
+function renderLL(){
+  const el=document.getElementById('llist');
+  if(S.layers.length===0){el.innerHTML='<div class="nol">Нажмите «+ Добавить текст»</div>';return;}
+  el.innerHTML=[...S.layers].reverse().map(l=>`<div class="li${l.id===S.selId?' sel':''}" onclick="selLayer(${l.id})"><span class="llbl">${eh(l.text||'(пусто)')}</span><span class="ldel" onclick="event.stopPropagation();deleteLayer(${l.id})">✕</span></div>`).join('');
+}
+function fillProps(l){
+  document.getElementById('ptxt').value=l.text;
+  document.getElementById('psize').value=l.size;
+  document.getElementById('pcolor').value=l.color;
+  document.getElementById('pshad').value=l.shadow;
+  document.getElementById('popac').value=l.opacity;
+  document.getElementById('pfont').value=l.fontId||'';
+  document.querySelectorAll('.ab').forEach(b=>b.classList.toggle('on',b.dataset.a===l.align));
+}
+function upd(k,v){
+  const l=S.layers.find(x=>x.id===S.selId);if(!l) return;
+  l[k]=v;if(k==='text') renderLL();redraw();
+}
+function setAlign(a){upd('align',a);document.querySelectorAll('.ab').forEach(b=>b.classList.toggle('on',b.dataset.a===a));}
+
+// ═══════════════════════════════════════════
+// ШРИФТЫ
+// ═══════════════════════════════════════════
+document.getElementById('fup').addEventListener('change',async function(){
+  const f=this.files[0];if(!f) return;
+  try{
+    const ab=await f.arrayBuffer();
+    const font=opentype.parse(ab);
+    S.fonts[f.name]=ab;S.otf[f.name]=font;
+    const sel=document.getElementById('pfont');
+    if(!sel.querySelector(`option[value="${f.name}"]`)){
+      const opt=document.createElement('option');opt.value=f.name;opt.textContent=f.name.replace(/\.(ttf|otf)$/i,'');
+      sel.appendChild(opt);
+    }
+    sel.value=f.name;upd('fontId',f.name);
+    toast('Шрифт загружен','ok');
+  }catch(e){toast('Ошибка шрифта: '+e.message,'err');}
+});
+
+// ═══════════════════════════════════════════
+// CROP (выбор новой картинки)
+// ═══════════════════════════════════════════
+document.getElementById('cfile').addEventListener('change',async function(){
+  const f=this.files[0];if(!f) return;
+  S.rawImg=await createImageBitmap(f);
+  S.croppedImg=null;
+  initCropBox();
+  initCanvas();
+  document.getElementById('bcrop').style.display='inline-flex';
+});
+
+// ── Открыть модальный кроппер (для точной обрезки) ──
+let cropInst=null;
+function openCrop(){
+  if(!S.rawImg){toast('Сначала выберите изображение','err');return;}
+  const tmp=document.createElement('canvas');
+  tmp.width=S.rawImg.width;tmp.height=S.rawImg.height;
+  tmp.getContext('2d').drawImage(S.rawImg,0,0);
+  const ci=document.getElementById('cropImg');
+  ci.src=tmp.toDataURL('image/jpeg',0.9);
+  document.getElementById('cropMdl').classList.add('open');
+  ci.onload=()=>{
+    if(cropInst){cropInst.destroy();cropInst=null;}
+    const r=parseFloat(document.getElementById('aratio').value);
+    cropInst=new Cropper(ci,{aspectRatio:r,viewMode:1,autoCropArea:0.9});
+  };
+}
+function closeCropModal(){
+  document.getElementById('cropMdl').classList.remove('open');
+  if(cropInst){cropInst.destroy();cropInst=null;}
+}
+async function applyCropModal(){
+  if(!cropInst) return;
+  const cc=cropInst.getCroppedCanvas({maxWidth:3000,maxHeight:3000});
+  S.croppedImg=await createImageBitmap(cc);
+  S.cropBox=null; // убираем оверлей рамки
+  document.getElementById('cropOverlay').classList.remove('visible');
+  hide('bapplycrop');
+  closeCropModal();
+  // Пересчитываем canvas
+  const ratio=parseFloat(document.getElementById('aratio').value);
+  const dh=Math.min(DISP_MAX_H,S.croppedImg.height);
+  const dw=Math.round(dh*ratio);
+  cvs.width=dw;cvs.height=dh;
+  redraw();
+  toast('Обрезка применена','ok');
+}
+
+// ═══════════════════════════════════════════
+// СОХРАНЕНИЕ EPUB — ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ═══════════════════════════════════════════
+async function saveEpub(){
+  if(!S.zip){toast('Сначала загрузите файл','err');return;}
+  setLd('sload','bsave',true);startPb('spbar','spfill');
+  try{
+    const zip=S.zip;
+
+    // 1. Читаем OPF как строку, парсим
+    const opfXmlOrig=await zip.file(S.opfPath).async('string');
+    const od=new DOMParser().parseFromString(opfXmlOrig,'application/xml');
+
+    // 2. Обновляем метаданные в DOM
+    const title=document.getElementById('mtitle').value.trim();
+    const author=document.getElementById('mauthor').value.trim();
+    setOrCreate(od,'title',title);
+    setOrCreate(od,'creator',author);
+
+    // 3. Рендерим финальную обложку
+    const src=S.croppedImg||S.rawImg;
+    if(src){
+      const finalBlob=await renderFinal(src);
+      if(finalBlob){
+        const finalAb=await finalBlob.arrayBuffer();
+
+        // Определяем куда писать в zip
+        const dir=opfDirOf(S.opfPath);
+        let targetHref=null;  // href относительно OPF-директории
+        let targetPath=null;  // полный путь в zip
+
+        if(S.coverItemId){
+          // Уже знаем id элемента — берём его href
+          const itemEl=od.querySelector(`item[id="${S.coverItemId}"]`);
+          if(itemEl){
+            targetHref=itemEl.getAttribute('href');
+            // Меняем на jpg
+            targetHref=targetHref.replace(/\.(png|webp|gif|bmp|jpeg)$/i,'.jpg');
+            if(!targetHref.endsWith('.jpg')) targetHref+='.jpg';
+            targetPath=dir?`${dir}/${targetHref}`:targetHref;
+            itemEl.setAttribute('href',targetHref);
+            itemEl.setAttribute('media-type','image/jpeg');
+          }
+        }
+
+        if(!targetHref){
+          // Создаём новый элемент обложки
+          targetHref='cover.jpg';
+          targetPath=dir?`${dir}/cover.jpg`:'cover.jpg';
+          const manifest=od.querySelector('manifest');
+          if(manifest){
+            // Удаляем старый если есть
+            const old=od.querySelector('item[id="cover-image"]');
+            if(old) old.parentNode.removeChild(old);
+            const newItem=od.createElementNS('http://www.idpf.org/2007/opf','item');
+            newItem.setAttribute('id','cover-image');
+            newItem.setAttribute('href',targetHref);
+            newItem.setAttribute('media-type','image/jpeg');
+            newItem.setAttribute('properties','cover-image');
+            manifest.appendChild(newItem);
+            S.coverItemId='cover-image';
+          }
+          // Добавляем meta name="cover"
+          const metadata=od.querySelector('metadata');
+          if(metadata){
+            let metaCov=od.querySelector('meta[name="cover"]');
+            if(!metaCov){
+              metaCov=od.createElementNS('http://www.idpf.org/2007/opf','meta');
+              metaCov.setAttribute('name','cover');
+              metadata.appendChild(metaCov);
+            }
+            metaCov.setAttribute('content','cover-image');
+          }
+        }
+
+        // Записываем файл обложки в zip
+        zip.file(targetPath, finalAb);
+        // Сохраняем для следующего сохранения
+        S.coverPathInZip=targetPath;
+      }
+    }
+
+    // 4. Сериализуем OPF и записываем
+    const serialized=new XMLSerializer().serializeToString(od);
+    zip.file(S.opfPath, serialized);
+
+    // 5. Генерируем epub
+    const blob=await zip.generateAsync(
+      {type:'blob',mimeType:'application/epub+zip',compression:'DEFLATE',compressionOptions:{level:6}},
+      m=>{document.getElementById('spfill').style.width=Math.round(m.percent)+'%';}
+    );
+
+    // 6. Имя файла: «Название» - «Автор».epub
+    const t=safeFilename(title)||'epub';
+    const a=safeFilename(author);
+    const outName=a?`${t} - ${a}.epub`:`${t}.epub`;
+
+    dl(blob,outName);
+    toast('Файл сохранён!','ok');
+  }catch(e){toast('Ошибка: '+e.message,'err');console.error(e);}
+  finally{setLd('sload','bsave',false);stopPb('spbar','spfill');}
+}
+
+// Вспомогательная: создаёт/обновляет DC-элемент в OPF
+function setOrCreate(doc,tag,val){
+  if(!val) return;
+  const NS='http://purl.org/dc/elements/1.1/';
+  let el=doc.querySelector(tag);
+  if(el){el.textContent=val;return;}
+  const meta=doc.querySelector('metadata');if(!meta) return;
+  el=doc.createElementNS(NS,`dc:${tag}`);el.textContent=val;meta.appendChild(el);
+}
+
+// Рендерим финальное изображение в полном разрешении
+async function renderFinal(srcBitmap){
+  if(!srcBitmap) return null;
+  const ow=srcBitmap.width, oh=srcBitmap.height;
+  const sc=ow/cvs.width;
+  const fc=document.createElement('canvas');fc.width=ow;fc.height=oh;
+  const fc2=fc.getContext('2d');
+  fc2.drawImage(srcBitmap,0,0,ow,oh);
+
+  S.layers.forEach(l=>{
+    fc2.save();
+    fc2.translate(l.x*sc,l.y*sc);fc2.rotate(l.rot||0);fc2.globalAlpha=(l.opacity||100)/100;
+    const font=l.fontId&&S.otf[l.fontId]?S.otf[l.fontId]:null;
+    const sz=l.size*sc;
+    const lines=(l.text||'').split('\n');
+    const lh=sz*1.22;const totalH=lh*lines.length;
+    const widths=lines.map(ln=>mW(fc2,font,ln,sz));
+    setShadow(fc2,l.shadow||'soft');
+    let cy=-totalH/2+sz*0.82;
+    lines.forEach((ln,i)=>{
+      const lw=widths[i];let ox=0;
+      if(l.align==='center') ox=-lw/2;else if(l.align==='right') ox=-lw;
+      if(font){fc2.fillStyle=l.color||'#fff';font.draw(fc2,ln,ox,cy,sz);}
+      else{fc2.font=`${sz}px serif`;fc2.fillStyle=l.color||'#fff';fc2.textAlign=l.align||'center';fc2.textBaseline='alphabetic';fc2.fillText(ln,0,cy);}
+      cy+=lh;
+    });
+    fc2.restore();
+  });
+
+  return new Promise(res=>fc.toBlob(res,'image/jpeg',0.95));
+}
+
+function resetEd(){
+  S.zip=null;S.opfPath=null;S.fname=null;S.coverPathInZip=null;S.coverItemId=null;
+  S.rawImg=null;S.croppedImg=null;S.cropBox=null;S.layers=[];S.selId=null;
+  hide('emeta');hide('smeta');hide('scover');hide('ssave');hide('ppanel');
+  document.getElementById('dinput').value='';document.getElementById('cfile').value='';
+  document.getElementById('cropOverlay').classList.remove('visible');
+  hide('bapplycrop');
+  renderLL();ctx.clearRect(0,0,cvs.width,cvs.height);
+}
+
+// ═══════════════════════════════════════════
+// ОБЪЕДИНЕНИЕ EPUB
+// ═══════════════════════════════════════════
+async function loadMergeFiles(files){
+  const eps=Array.from(files).filter(f=>f.name.endsWith('.epub'));
+  if(eps.length<2){toast('Нужно минимум 2 epub-файла','err');return;}
+  S.mg.files=[];
+  for(const f of eps){
+    try{
+      const ab=await f.arrayBuffer(),zip=await JSZip.loadAsync(ab);
+      const op=await findOpf(zip);
+      const od=new DOMParser().parseFromString(await zip.file(op).async('string'),'application/xml');
+      S.mg.files.push({name:f.name,zip,opfPath:op,opfDoc:od,meta:parseMeta(od)});
+    }catch(e){toast(`Ошибка ${f.name}: ${e.message}`,'err');}
+  }
+  if(S.mg.files.length<2){toast('Не удалось загрузить достаточно файлов','err');return;}
+  renderML();
+  const titles=S.mg.files.map(f=>f.meta.title).filter(Boolean);
+  const auths=[...new Set(S.mg.files.map(f=>f.meta.author).filter(Boolean))];
+  document.getElementById('mgtitle').value=titles.join(' + ')||'Объединённая книга';
+  document.getElementById('mgauth').value=auths.join(', ')||'';
+  // Имя файла по умолчанию
+  const t=safeFilename(titles[0]||'merged');
+  document.getElementById('mgfile').value=`${t} - объединение.epub`;
+  show('smord');show('smset');show('smbtn');
+  toast(`Загружено ${S.mg.files.length} файлов`,'ok');
+}
+
+function renderML(){
+  const list=document.getElementById('mlist');list.innerHTML='';
+  S.mg.files.forEach((f,i)=>{
+    const li=document.createElement('li');li.draggable=true;li.dataset.i=i;
+    li.innerHTML=`<span class="fnum">${i+1}</span><span class="dh">⠿</span><div class="fi"><div class="fn">${f.name}</div><div class="fm">${f.meta.title||'—'} · ${f.meta.author||'—'}</div></div><button class="btn bd bsm" onclick="rmMg(${i})">✕</button>`;
+    setupDI(li);list.appendChild(li);
+  });
+}
+function rmMg(i){S.mg.files.splice(i,1);renderML();if(S.mg.files.length<2) hide('smbtn');}
+
+let _ds=null;
+function setupDI(li){
+  li.addEventListener('dragstart',()=>{_ds=li;li.classList.add('dg2');});
+  li.addEventListener('dragend',()=>li.classList.remove('dg2'));
+  li.addEventListener('dragover',e=>{e.preventDefault();li.classList.add('dov');});
+  li.addEventListener('dragleave',()=>li.classList.remove('dov'));
+  li.addEventListener('drop',e=>{e.preventDefault();li.classList.remove('dov');if(!_ds||_ds===li) return;const si=parseInt(_ds.dataset.i),di=parseInt(li.dataset.i);const[m]=S.mg.files.splice(si,1);S.mg.files.splice(di,0,m);renderML();});
+}
+
+async function execMerge(){
+  if(S.mg.files.length<2){toast('Нужно минимум 2 файла','err');return;}
+  setLd('mload','bmerge',true);startPb('mpbar','mpfill');
+  try{
+    const T=document.getElementById('mgtitle').value||'Объединённая книга';
+    const A=document.getElementById('mgauth').value||'';
+    const FN=document.getElementById('mgfile').value||'merged.epub';
+    const oz=new JSZip();
+    oz.file('mimetype','application/epub+zip',{compression:'STORE'});
+    oz.file('META-INF/container.xml','<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
+    const mf={},sp=[],tc=[];
+    let ci=0,ii=0,csi=0,fi=0;
+    for(const bk of S.mg.files){
+      const{zip,opfPath:op,opfDoc:od,meta}=bk;
+      const dir=opfDirOf(op);const hm={};
+      for(const it of Array.from(od.querySelectorAll('manifest item'))){
+        const id=it.getAttribute('id')||'',href=it.getAttribute('href')||'';
+        const mt=it.getAttribute('media-type')||'',props=it.getAttribute('properties')||'';
+        if(mt==='application/x-dtbncx+xml'||props.includes('nav')) continue;
+        const sf=zip.file(dir?`${dir}/${href}`:href)||zip.file(href);if(!sf) continue;
+        const data=await sf.async('arraybuffer');
+        if(mt==='application/xhtml+xml'||mt==='text/html'){
+          ci++;const nh=`chapters/ch_${String(ci).padStart(4,'0')}.xhtml`;
+          hm[href]=nh;oz.file(`OEBPS/${nh}`,new TextDecoder().decode(data));mf[`ch${ci}`]={href:nh,mediaType:'application/xhtml+xml'};
+        }else if(mt.startsWith('image/')){
+          ii++;const ext=href.split('.').pop()||'jpg',nh=`images/img_${String(ii).padStart(4,'0')}.${ext}`;
+          hm[href]=nh;oz.file(`OEBPS/${nh}`,data);
+          const mid=`img${ii}`;mf[mid]={href:nh,mediaType:mt};
+          if(props.includes('cover')||id.toLowerCase().includes('cover')) mf[mid].properties='cover-image';
+        }else if(mt==='text/css'||mt==='text/x-css'){
+          csi++;const nh=`css/s${String(csi).padStart(3,'0')}.css`;
+          hm[href]=nh;oz.file(`OEBPS/${nh}`,data);mf[`css${csi}`]={href:nh,mediaType:'text/css'};
+        }else if(mt.includes('font')||mt.includes('opentype')||mt.includes('sfnt')){
+          fi++;const ext=href.split('.').pop()||'ttf',nh=`fonts/f${String(fi).padStart(3,'0')}.${ext}`;
+          hm[href]=nh;oz.file(`OEBPS/${nh}`,data);mf[`font${fi}`]={href:nh,mediaType:mt};
+        }
+      }
+      for(const ref of Array.from(od.querySelectorAll('spine itemref'))){
+        const it=od.querySelector(`manifest item[id="${ref.getAttribute('idref')}"]`);if(!it) continue;
+        const nh=hm[it.getAttribute('href')||''];if(nh&&nh.startsWith('chapters/')) sp.push(nh);
+      }
+      const btoc=[];
+      const ncxid=od.querySelector('spine')?.getAttribute('toc')||'';
+      const ncxit=ncxid?od.querySelector(`manifest item[id="${ncxid}"]`):null;
+      if(ncxit){
+        const nh=ncxit.getAttribute('href')||'',np=dir?`${dir}/${nh}`:nh;
+        const nf=zip.file(np)||zip.file(nh);
+        if(nf){try{const nd=new DOMParser().parseFromString(await nf.async('string'),'application/xml');nd.querySelectorAll('navMap > navPoint').forEach(np2=>{const lb=np2.querySelector('navLabel text')?.textContent||'';const src=np2.querySelector('content')?.getAttribute('src')||'';const sf2=src.split('#')[0],anc=src.includes('#')?'#'+src.split('#')[1]:'';const newH=hm[sf2];if(newH) btoc.push({label:lb,href:`../chapters/${newH.split('/').pop()}${anc}`});});}catch(e){}}
+      }
+      if(btoc.length===0) Object.entries(hm).forEach(([,nh])=>{if(nh.startsWith('chapters/')) btoc.push({label:nh.split('/').pop().replace('.xhtml',''),href:`../chapters/${nh.split('/').pop()}`});});
+      tc.push({label:meta.title||bk.name,href:btoc[0]?.href||'',children:btoc});
+      document.getElementById('mpfill').style.width=Math.round((S.mg.files.indexOf(bk)+1)/S.mg.files.length*75)+'%';
+    }
+    oz.file('OEBPS/toc.ncx',bldNcx(T,tc));oz.file('OEBPS/nav.xhtml',bldNav(T,tc));
+    mf['ncx']={href:'toc.ncx',mediaType:'application/x-dtbncx+xml'};
+    mf['nav']={href:'nav.xhtml',mediaType:'application/xhtml+xml',properties:'nav'};
+    oz.file('OEBPS/content.opf',bldOpf(T,A,mf,sp));
+    document.getElementById('mpfill').style.width='85%';
+    const blob=await oz.generateAsync({type:'blob',mimeType:'application/epub+zip',compression:'DEFLATE',compressionOptions:{level:6}});
+    dl(blob,FN);toast('Объединение завершено!','ok');
+  }catch(e){toast('Ошибка: '+e.message,'err');console.error(e);}
+  finally{setLd('mload','bmerge',false);stopPb('mpbar','mpfill');}
+}
+
+function bldOpf(T,A,mf,sp){
+  const uid=(crypto.randomUUID?.())||Math.random().toString(36).slice(2);
+  const items=Object.entries(mf).map(([id,it])=>`<item id="${esc(id)}" href="${esc(it.href)}" media-type="${esc(it.mediaType)}"${it.properties?` properties="${it.properties}"`:''}/>`).join('');
+  const sins=sp.map(h=>{const id=Object.entries(mf).find(([,v])=>v.href===h)?.[0];return id?`<itemref idref="${esc(id)}"/>`:'';}).filter(Boolean).join('');
+  return`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="BookId">${uid}</dc:identifier><dc:title>${esc(T)}</dc:title><dc:creator>${esc(A)}</dc:creator><dc:language>ru</dc:language><meta property="dcterms:modified">2024-01-01T00:00:00Z</meta></metadata><manifest>${items}</manifest><spine toc="ncx">${sins}</spine></package>`;
+}
+function bldNcx(T,tc){
+  let po=0;const pts=tc.map(s=>{po++;const ch=(s.children||[]).map(c=>{po++;return`<navPoint id="np${po}" playOrder="${po}"><navLabel><text>${esc(c.label)}</text></navLabel><content src="${esc(c.href)}"/></navPoint>`;}).join('');return`<navPoint id="np${po}" playOrder="${po}"><navLabel><text>${esc(s.label)}</text></navLabel><content src="${esc(s.href||s.children?.[0]?.href||'')}"/>${ch}</navPoint>`;}).join('');
+  return`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="book-id"/></head><docTitle><text>${esc(T)}</text></docTitle><navMap>${pts}</navMap></ncx>`;
+}
+function bldNav(T,tc){
+  const items=tc.map(s=>{const h=s.href||s.children?.[0]?.href||'';const ch=(s.children||[]).map(c=>`<li><a href="${esc(c.href)}">${esc(c.label)}</a></li>`).join('');return`<li><a href="${esc(h)}">${esc(s.label)}</a>${ch?`<ol>${ch}</ol>`:''}</li>`;}).join('');
+  return`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>Оглавление</title></head><body><nav epub:type="toc"><h1>${esc(T)}</h1><ol>${items}</ol></nav></body></html>`;
+}
+
+function resetMg(){
+  S.mg.files=[];hide('smord');hide('smset');hide('smbtn');
+  document.getElementById('minput').value='';document.getElementById('mlist').innerHTML='';
+}
+
+// Инициализация
+initCanvas();
+</script>
+</body>
+</html>
