@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EPUB Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@300;400&display=swap');
+
+  :root {
+    --bg:       #0e0e11;
+    --surface:  #16161a;
+    --card:     #1e1e24;
+    --border:   #2c2c35;
+    --accent:   #c8a96e;
+    --accent2:  #7c6fcd;
+    --text:     #e8e6e0;
+    --muted:    #6b6975;
+    --danger:   #c0392b;
+    --success:  #27ae60;
+    --radius:   10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Шапка ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  header span.version {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* ── Навигация ── */
+  nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 32px;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── Layout ── */
+  main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Секции ── */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Drop Zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .25s;
+    color: var(--muted);
+    background: var(--surface);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(200,169,110,.04);
+  }
+  .drop-zone .icon { font-size: 36px; margin-bottom: 8px; opacity: .6; }
+  .drop-zone p { font-size: 12px; }
+  .drop-zone input[type=file] { display: none; }
+
+  /* ── Форма ── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--muted);
+  }
+  input[type=text], input[type=number], select, textarea {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  input[type=color] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    height: 38px;
+    width: 56px;
+    padding: 3px;
+    cursor: pointer;
+  }
+
+  /* ── Кнопки ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    cursor: pointer;
+    letter-spacing: .5px;
+    transition: all .2s;
+    text-transform: uppercase;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #111;
+  }
+  .btn-primary:hover { background: #d4b980; }
+  .btn-secondary {
+    background: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { background: #3a3a45; }
+  .btn-danger {
+    background: rgba(192,57,43,.15);
+    color: #e74c3c;
+    border: 1px solid rgba(192,57,43,.3);
+  }
+  .btn-danger:hover { background: rgba(192,57,43,.25); }
+  .btn-accent2 {
+    background: var(--accent2);
+    color: #fff;
+  }
+  .btn-accent2:hover { background: #9187d9; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── Обложка ── */
+  .cover-area {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .cover-preview {
+    width: 200px;
+    aspect-ratio: 2/3;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 11px;
+    position: relative;
+  }
+  .cover-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .cover-preview img.loaded { display: block; }
+  .cover-placeholder { text-align: center; }
+  .cover-placeholder .icon { font-size: 28px; opacity: .4; display: block; margin-bottom: 4px; }
+
+  /* ── Текстовые блоки для обложки ── */
+  .text-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .text-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .text-block-grid {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto;
+    gap: 8px;
+    align-items: end;
+  }
+
+  /* ── Слайдеры позиций ── */
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  /* ── Merge список ── */
+  #merge-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #merge-list li {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: grab;
+    transition: border-color .2s;
+    user-select: none;
+  }
+  #merge-list li:hover { border-color: var(--accent2); }
+  #merge-list li.dragging {
+    opacity: .5;
+    border-color: var(--accent);
+  }
+  #merge-list li.drag-over { border-color: var(--accent2); background: rgba(124,111,205,.08); }
+  .drag-handle { color: var(--muted); font-size: 16px; cursor: grab; }
+  .file-info { flex: 1; }
+  .file-name { font-size: 13px; }
+  .file-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .file-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 12px;
+    max-width: 360px;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all .3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.error { border-color: var(--danger); color: #e74c3c; }
+  #toast.success { border-color: var(--success); color: #2ecc71; }
+
+  /* ── Loader ── */
+  .loader {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Metadata badge ── */
+  .meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-right: 8px;
+    margin-bottom: 6px;
+  }
+  .meta-badge span { color: var(--text); }
+
+  /* ── Progress ── */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 12px;
+    display: none;
+  }
+  .progress-bar.active { display: block; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width .3s;
+    border-radius: 2px;
+  }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📖 EPUB Editor</h1>
+  <span class="version">v1.0</span>
+</header>
+
+<nav>
+  <button class="active" data-tab="editor">Редактор</button>
+  <button data-tab="merger">Объединение</button>
+</nav>
+
+<main>
+
+  <!-- ════════════ ВКЛАДКА: РЕДАКТОР ════════════ -->
+  <div id="tab-editor" class="tab-panel active">
+
+    <!-- Загрузка файла -->
+    <div class="section">
+      <div class="section-title">Загрузка файла</div>
+      <div class="drop-zone" id="editor-drop">
+        <input type="file" id="editor-file-input" accept=".epub"/>
+        <div class="icon">📂</div>
+        <p>Перетащите .epub сюда или <strong>нажмите для выбора</strong></p>
+        <p style="margin-top:6px;font-size:11px;color:var(--muted)">Только файлы формата EPUB</p>
+      </div>
+      <div id="editor-meta" style="margin-top:14px;display:none">
+        <div id="meta-badges"></div>
+      </div>
+    </div>
+
+    <!-- Метаданные -->
+    <div class="section" id="section-meta" style="display:none">
+      <div class="section-title">Метаданные</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Название книги</label>
+          <input type="text" id="meta-title" placeholder="Введите название"/>
+        </div>
+        <div class="form-group">
+          <label>Автор</label>
+          <input type="text" id="meta-author" placeholder="Введите автора"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Обложка -->
+    <div class="section" id="section-cover" style="display:none">
+      <div class="section-title">Обложка</div>
+      <div class="cover-area">
+        <div>
+          <div class="cover-preview" id="cover-preview">
+            <img id="cover-img" alt="Обложка"/>
+            <div class="cover-placeholder" id="cover-placeholder">
+              <span class="icon">🖼️</span>
+              <span>Нет обложки</span>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <input type="file" id="cover-file-input" accept="image/*" style="display:none"/>
+            <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="document.getElementById('cover-file-input').click()">
+              Выбрать изображение
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Соотношение сторон</label>
+            <select id="aspect-ratio">
+              <option value="2:3">2:3 (стандарт книги)</option>
+              <option value="3:4">3:4</option>
+              <option value="1:1">1:1 (квадрат)</option>
+              <option value="9:16">9:16 (вертикаль)</option>
+              <option value="16:9">16:9 (горизонталь)</option>
+              <option value="A4">A4</option>
+            </select>
+          </div>
+
+          <hr class="divider"/>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <label style="text-transform:uppercase;letter-spacing:.8px;font-size:11px;color:var(--muted)">Текст на обложке</label>
+            <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px" onclick="addTextBlock()">+ Добавить</button>
+          </div>
+          <div id="text-blocks-container">
+            <div class="empty-state" id="text-blocks-empty">Нет текстовых блоков</div>
+          </div>
+
+          <hr class="divider"/>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Шрифт</label>
+            <div style="display:flex;gap:8px">
+              <select id="font-select" style="flex:1">
+                <option value="">— Стандартный (DejaVu) —</option>
+              </select>
+              <button class="btn btn-secondary" style="padding:9px 14px;white-space:nowrap" onclick="document.getElementById('font-upload').click()">
+                ↑ Загрузить
+              </button>
+              <input type="file" id="font-upload" accept=".ttf,.otf,.woff,.woff2" style="display:none"/>
+            </div>
+            <div class="hint">Для кириллицы нужен шрифт с поддержкой кирилла (TTF/OTF)</div>
+          </div>
+
+          <button class="btn btn-accent2" onclick="previewCover()" id="btn-preview-cover" style="display:none">
+            <span>👁 Предпросмотр обложки</span>
+            <div class="loader" id="preview-loader"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Сохранение -->
+    <div id="section-save" style="display:none">
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveEpub()" id="btn-save">
+          <span>💾 Сохранить EPUB</span>
+          <div class="loader" id="save-loader"></div>
+        </button>
+        <button class="btn btn-secondary" onclick="resetEditor()">Сбросить</button>
+      </div>
+      <div class="progress-bar" id="save-progress">
+        <div class="progress-fill" id="save-progress-fill"></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-editor -->
+
+
+  <!-- ════════════ ВКЛАДКА: ОБЪЕДИНЕНИЕ ════════════ -->
+  <div id="tab-merger" class="tab-panel">
+
+    <!-- Загрузка -->
+    <div class="section">
+      <div class="section-title">Файлы для объединения</div>
+      <div class="drop-zone" id="merge-drop">
+        <input type="file" id="merge-file-input" accept=".epub" multiple/>
+        <div class="icon">📚</div>
+        <p>Перетащите несколько .epub или <strong>нажмите для выбора</strong></p>
+        <p style="margin-top:6px;font-size:11px;color:var(--muted)">Минимум 2 файла</p>
+      </div>
+    </div>
+
+    <!-- Порядок -->
+    <div class="section" id="section-merge-order" style="display:none">
+      <div class="section-title">Порядок объединения</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px">
+        Перетащите книги для изменения порядка. Первая книга вверху.
+      </p>
+      <ul id="merge-list"></ul>
+    </div>
+
+    <!-- Настройки объединения -->
+    <div class="section" id="section-merge-settings" style="display:none">
+      <div class="section-title">Параметры итоговой книги</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Название итоговой книги</label>
+          <input type="text" id="merge-title" placeholder="Объединённая книга"/>
+        </div>
+        <div class="form-group">
+          <label>Автор</label>
+          <input type="text" id="merge-author" placeholder="Автор"/>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group">
+          <label>Имя файла</label>
+          <input type="text" id="merge-filename" value="merged.epub" placeholder="merged.epub"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Объединить -->
+    <div id="section-merge-btn" style="display:none">
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="executeMerge()" id="btn-merge">
+          <span>🔗 Объединить</span>
+          <div class="loader" id="merge-loader"></div>
+        </button>
+        <button class="btn btn-secondary" onclick="resetMerger()">Сбросить</button>
+      </div>
+      <div class="progress-bar" id="merge-progress">
+        <div class="progress-fill" id="merge-progress-fill"></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-merger -->
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ─── Состояние ───────────────────────────────────────────────────────────────
+const state = {
+  editor: {
+    fileId: null,
+    originalName: null,
+    hasCover: false,
+    coverFileSelected: false,
+  },
+  merger: {
+    files: [],  // [{file_id, original_name, metadata}]
+  },
+  textBlocks: [],
+  fonts: [],
+};
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = "info") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ""; }, 4000);
+}
+
+// ─── Вкладки ─────────────────────────────────────────────────────────────────
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+  });
+});
+
+// ─── РЕДАКТОР: Drag & Drop ────────────────────────────────────────────────────
+setupDropZone("editor-drop", "editor-file-input", handleEditorFiles);
+setupDropZone("merge-drop", "merge-file-input", handleMergeFiles);
+
+function setupDropZone(zoneId, inputId, handler) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+
+  zone.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => handler(input.files));
+
+  zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    handler(e.dataTransfer.files);
+  });
+}
+
+// ─── РЕДАКТОР: загрузка файла ─────────────────────────────────────────────────
+async function handleEditorFiles(files) {
+  const file = files[0];
+  if (!file || !file.name.endsWith(".epub")) {
+    showToast("Пожалуйста, выберите .epub файл", "error"); return;
+  }
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const r = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) { showToast(data.error || "Ошибка загрузки", "error"); return; }
+
+    state.editor.fileId = data.file_id;
+    state.editor.originalName = data.original_name;
+    state.editor.hasCover = data.has_cover;
+
+    // Метабейджи
+    const badges = document.getElementById("meta-badges");
+    badges.innerHTML = `
+      <div class="meta-badge">Файл: <span>${data.original_name}</span></div>
+      <div class="meta-badge">Название: <span>${data.metadata.title || "—"}</span></div>
+      <div class="meta-badge">Автор: <span>${data.metadata.author || "—"}</span></div>
+    `;
+    document.getElementById("editor-meta").style.display = "block";
+
+    // Заполняем поля
+    document.getElementById("meta-title").value = data.metadata.title || "";
+    document.getElementById("meta-author").value = data.metadata.author || "";
+
+    // Обложка
+    if (data.has_cover) {
+      const img = document.getElementById("cover-img");
+      img.src = `/api/cover/${data.file_id}?t=${Date.now()}`;
+      img.onload = () => {
+        img.classList.add("loaded");
+        document.getElementById("cover-placeholder").style.display = "none";
+      };
+    }
+
+    // Показываем секции
+    show("section-meta");
+    show("section-cover");
+    show("section-save");
+    document.getElementById("btn-preview-cover").style.display = "inline-flex";
+
+    showToast("Файл загружен", "success");
+    loadFonts();
+  } catch(e) {
+    showToast("Ошибка соединения с сервером", "error");
+  }
+}
+
+// ─── Обложка: выбор файла ─────────────────────────────────────────────────────
+document.getElementById("cover-file-input").addEventListener("change", function() {
+  if (!this.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById("cover-img");
+    img.src = e.target.result;
+    img.classList.add("loaded");
+    document.getElementById("cover-placeholder").style.display = "none";
+    state.editor.coverFileSelected = true;
+    document.getElementById("btn-preview-cover").style.display = "inline-flex";
+  };
+  reader.readAsDataURL(this.files[0]);
+});
+
+// ─── Обложка: предпросмотр ────────────────────────────────────────────────────
+async function previewCover() {
+  const coverInput = document.getElementById("cover-file-input");
+  if (!coverInput.files[0]) { showToast("Сначала выберите изображение", "error"); return; }
+
+  setLoading("preview-loader", "btn-preview-cover", true);
+
+  const fd = new FormData();
+  fd.append("image", coverInput.files[0]);
+  fd.append("aspect_ratio", document.getElementById("aspect-ratio").value);
+  fd.append("text_lines", JSON.stringify(collectTextBlocks()));
+  const fontId = document.getElementById("font-select").value;
+  if (fontId) fd.append("font_id", fontId);
+
+  try {
+    const r = await fetch("/api/process-cover", { method: "POST", body: fd });
+    if (!r.ok) {
+      const d = await r.json();
+      showToast(d.error || "Ошибка", "error");
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById("cover-img");
+    img.src = url;
+    img.classList.add("loaded");
+    document.getElementById("cover-placeholder").style.display = "none";
+    showToast("Предпросмотр обновлён", "success");
+  } catch(e) {
+    showToast("Ошибка", "error");
+  } finally {
+    setLoading("preview-loader", "btn-preview-cover", false);
+  }
+}
+
+// ─── Текстовые блоки ──────────────────────────────────────────────────────────
+let blockCounter = 0;
+function addTextBlock() {
+  blockCounter++;
+  const id = blockCounter;
+  document.getElementById("text-blocks-empty").style.display = "none";
+
+  const div = document.createElement("div");
+  div.className = "text-block";
+  div.id = `block-${id}`;
+  div.innerHTML = `
+    <div class="text-block-header">
+      <span>Блок ${id}</span>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:10px" onclick="removeBlock(${id})">✕ Удалить</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Текст</label>
+        <input type="text" id="block-text-${id}" placeholder="Название книги, автор..."/>
+      </div>
+      <div class="form-group" style="flex:0 0 80px">
+        <label>Размер</label>
+        <input type="number" id="block-size-${id}" value="60" min="10" max="300"/>
+      </div>
+      <div class="form-group" style="flex:0 0 70px">
+        <label>Цвет</label>
+        <input type="color" id="block-color-${id}" value="#ffffff"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Позиция X (% от ширины)</label>
+        <input type="range" id="block-x-${id}" min="0" max="100" value="50"
+          oninput="document.getElementById('block-x-val-${id}').textContent = this.value + '%'"/>
+        <span style="font-size:10px;color:var(--muted)" id="block-x-val-${id}">50%</span>
+      </div>
+      <div class="form-group">
+        <label>Позиция Y (% от высоты)</label>
+        <input type="range" id="block-y-${id}" min="0" max="100" value="90"
+          oninput="document.getElementById('block-y-val-${id}').textContent = this.value + '%'"/>
+        <span style="font-size:10px;color:var(--muted)" id="block-y-val-${id}">90%</span>
+      </div>
+    </div>
+  `;
+  document.getElementById("text-blocks-container").appendChild(div);
+}
+
+function removeBlock(id) {
+  document.getElementById(`block-${id}`).remove();
+  const remaining = document.querySelectorAll(".text-block");
+  if (remaining.length === 0) {
+    document.getElementById("text-blocks-empty").style.display = "";
+  }
+}
+
+function collectTextBlocks() {
+  const blocks = [];
+  document.querySelectorAll(".text-block").forEach(block => {
+    const id = block.id.replace("block-", "");
+    const text = document.getElementById(`block-text-${id}`).value.trim();
+    if (!text) return;
+
+    // Для слайдера нам нужны реальные пиксели — передаём проценты,
+    // сервер сам рассчитает относительно итогового размера изображения
+    const xPct = parseInt(document.getElementById(`block-x-${id}`).value) / 100;
+    const yPct = parseInt(document.getElementById(`block-y-${id}`).value) / 100;
+
+    blocks.push({
+      text,
+      color: document.getElementById(`block-color-${id}`).value,
+      size: parseInt(document.getElementById(`block-size-${id}`).value),
+      x_pct: xPct,
+      y_pct: yPct,
+      shadow: true,
+    });
+  });
+  return blocks;
+}
+
+// ─── Шрифты ───────────────────────────────────────────────────────────────────
+async function loadFonts() {
+  try {
+    const r = await fetch("/api/fonts");
+    const data = await r.json();
+    state.fonts = data.fonts;
+    const sel = document.getElementById("font-select");
+    sel.innerHTML = '<option value="">— Стандартный (DejaVu) —</option>';
+    data.fonts.forEach(f => {
+      const opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = f.name;
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+document.getElementById("font-upload").addEventListener("change", async function() {
+  if (!this.files[0]) return;
+  const fd = new FormData();
+  fd.append("font", this.files[0]);
+  try {
+    const r = await fetch("/api/fonts/upload", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) { showToast(data.error, "error"); return; }
+    showToast(`Шрифт "${data.name}" загружен`, "success");
+    await loadFonts();
+    document.getElementById("font-select").value = data.id;
+  } catch(e) {
+    showToast("Ошибка загрузки шрифта", "error");
+  }
+});
+
+// ─── Сохранение EPUB ──────────────────────────────────────────────────────────
+async function saveEpub() {
+  if (!state.editor.fileId) { showToast("Сначала загрузите файл", "error"); return; }
+
+  setLoading("save-loader", "btn-save", true);
+  animateProgress("save-progress", "save-progress-fill");
+
+  const fd = new FormData();
+  fd.append("file_id", state.editor.fileId);
+  fd.append("title", document.getElementById("meta-title").value);
+  fd.append("author", document.getElementById("meta-author").value);
+  fd.append("aspect_ratio", document.getElementById("aspect-ratio").value);
+  fd.append("text_lines", JSON.stringify(collectTextBlocks()));
+  const fontId = document.getElementById("font-select").value;
+  if (fontId) fd.append("font_id", fontId);
+
+  const coverInput = document.getElementById("cover-file-input");
+  if (coverInput.files[0]) {
+    fd.append("cover", coverInput.files[0]);
+  }
+
+  try {
+    const r = await fetch("/api/save", { method: "POST", body: fd });
+    if (!r.ok) {
+      const d = await r.json();
+      showToast(d.error || "Ошибка сохранения", "error");
+      return;
+    }
+    const blob = await r.blob();
+    downloadBlob(blob, `edited_${state.editor.originalName}`);
+    showToast("Файл сохранён и скачан!", "success");
+  } catch(e) {
+    showToast("Ошибка соединения", "error");
+  } finally {
+    setLoading("save-loader", "btn-save", false);
+    stopProgress("save-progress", "save-progress-fill");
+  }
+}
+
+// ─── ОБЪЕДИНЕНИЕ: загрузка ────────────────────────────────────────────────────
+async function handleMergeFiles(files) {
+  const epubs = Array.from(files).filter(f => f.name.endsWith(".epub"));
+  if (epubs.length < 2) { showToast("Нужно минимум 2 epub-файла", "error"); return; }
+
+  const fd = new FormData();
+  epubs.forEach(f => fd.append("files", f));
+
+  try {
+    const r = await fetch("/api/merge/upload", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) { showToast(data.error, "error"); return; }
+
+    state.merger.files = data.files;
+    renderMergeList();
+
+    // Авто-заполнение полей из первой книги
+    if (data.files.length > 0) {
+      const titles = data.files.map(f => f.metadata.title).filter(Boolean);
+      document.getElementById("merge-title").value = titles.join(" + ") || "Объединённая книга";
+      const authors = [...new Set(data.files.map(f => f.metadata.author).filter(Boolean))];
+      document.getElementById("merge-author").value = authors.join(", ") || "";
+    }
+
+    show("section-merge-order");
+    show("section-merge-settings");
+    show("section-merge-btn");
+    showToast(`Загружено ${data.files.length} файлов`, "success");
+  } catch(e) {
+    showToast("Ошибка загрузки", "error");
+  }
+}
+
+function renderMergeList() {
+  const list = document.getElementById("merge-list");
+  list.innerHTML = "";
+  state.merger.files.forEach((f, idx) => {
+    const li = document.createElement("li");
+    li.draggable = true;
+    li.dataset.idx = idx;
+    li.innerHTML = `
+      <span class="file-num">${idx + 1}</span>
+      <span class="drag-handle">⠿</span>
+      <div class="file-info">
+        <div class="file-name">${f.original_name}</div>
+        <div class="file-meta">${f.metadata.title || "—"} · ${f.metadata.author || "—"}</div>
+      </div>
+      <button class="btn btn-danger" style="padding:5px 10px;font-size:10px" onclick="removeMergeFile(${idx})">✕</button>
+    `;
+    setupDrag(li);
+    list.appendChild(li);
+  });
+}
+
+function removeMergeFile(idx) {
+  state.merger.files.splice(idx, 1);
+  renderMergeList();
+  if (state.merger.files.length < 2) {
+    hide("section-merge-btn");
+  }
+}
+
+// ─── Drag & Drop для сортировки ───────────────────────────────────────────────
+let dragSrc = null;
+function setupDrag(li) {
+  li.addEventListener("dragstart", () => { dragSrc = li; li.classList.add("dragging"); });
+  li.addEventListener("dragend", () => li.classList.remove("dragging"));
+  li.addEventListener("dragover", e => { e.preventDefault(); li.classList.add("drag-over"); });
+  li.addEventListener("dragleave", () => li.classList.remove("drag-over"));
+  li.addEventListener("drop", e => {
+    e.preventDefault();
+    li.classList.remove("drag-over");
+    if (dragSrc && dragSrc !== li) {
+      const srcIdx = parseInt(dragSrc.dataset.idx);
+      const dstIdx = parseInt(li.dataset.idx);
+      const [moved] = state.merger.files.splice(srcIdx, 1);
+      state.merger.files.splice(dstIdx, 0, moved);
+      renderMergeList();
+    }
+  });
+}
+
+// ─── Выполнить объединение ────────────────────────────────────────────────────
+async function executeMerge() {
+  if (state.merger.files.length < 2) { showToast("Нужно минимум 2 файла", "error"); return; }
+
+  setLoading("merge-loader", "btn-merge", true);
+  animateProgress("merge-progress", "merge-progress-fill");
+
+  const payload = {
+    order: state.merger.files.map(f => f.file_id),
+    title: document.getElementById("merge-title").value || "Объединённая книга",
+    author: document.getElementById("merge-author").value || "",
+    output_name: document.getElementById("merge-filename").value || "merged.epub",
+  };
+
+  try {
+    const r = await fetch("/api/merge/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const d = await r.json();
+      showToast(d.error || "Ошибка", "error");
+      return;
+    }
+    const blob = await r.blob();
+    downloadBlob(blob, payload.output_name);
+    showToast("Книги объединены и скачаны!", "success");
+  } catch(e) {
+    showToast("Ошибка соединения", "error");
+  } finally {
+    setLoading("merge-loader", "btn-merge", false);
+    stopProgress("merge-progress", "merge-progress-fill");
+  }
+}
+
+// ─── Сброс ────────────────────────────────────────────────────────────────────
+function resetEditor() {
+  state.editor = { fileId: null, originalName: null, hasCover: false, coverFileSelected: false };
+  document.getElementById("editor-meta").style.display = "none";
+  hide("section-meta"); hide("section-cover"); hide("section-save");
+  document.getElementById("editor-file-input").value = "";
+  document.getElementById("cover-file-input").value = "";
+  document.getElementById("cover-img").src = "";
+  document.getElementById("cover-img").classList.remove("loaded");
+  document.getElementById("cover-placeholder").style.display = "";
+  document.getElementById("text-blocks-container").innerHTML = '<div class="empty-state" id="text-blocks-empty">Нет текстовых блоков</div>';
+  blockCounter = 0;
+}
+
+function resetMerger() {
+  state.merger.files = [];
+  hide("section-merge-order"); hide("section-merge-settings"); hide("section-merge-btn");
+  document.getElementById("merge-file-input").value = "";
+  document.getElementById("merge-list").innerHTML = "";
+}
+
+// ─── Утилиты ──────────────────────────────────────────────────────────────────
+function show(id) { document.getElementById(id).style.display = "block"; }
+function hide(id) { document.getElementById(id).style.display = "none"; }
+
+function setLoading(loaderId, btnId, active) {
+  const loader = document.getElementById(loaderId);
+  const btn = document.getElementById(btnId);
+  loader.style.display = active ? "block" : "none";
+  btn.disabled = active;
+}
+
+let progressInterval;
+function animateProgress(barId, fillId) {
+  show(barId);
+  const fill = document.getElementById(fillId);
+  document.getElementById(barId).classList.add("active");
+  fill.style.width = "0%";
+  let w = 0;
+  progressInterval = setInterval(() => {
+    w = Math.min(w + Math.random() * 8, 90);
+    fill.style.width = w + "%";
+  }, 300);
+}
+
+function stopProgress(barId, fillId) {
+  clearInterval(progressInterval);
+  const fill = document.getElementById(fillId);
+  fill.style.width = "100%";
+  setTimeout(() => {
+    document.getElementById(barId).classList.remove("active");
+    fill.style.width = "0%";
+  }, 600);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+</script>
+</body>
+</html>
