@@ -749,30 +749,137 @@ input[type=range]::-webkit-slider-thumb{
 
 <!-- ════════════════ ОБЪЕДИНЕНИЕ ════════════════ -->
 <div id="tab-mg" class="tab">
+
+  <!-- Загрузка файлов -->
   <div class="card glass">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(191,90,242,.12)">📚</div>Файлы</div>
+    <div class="card-title"><div class="card-title-icon" style="background:rgba(191,90,242,.12)">📚</div>Файлы для объединения</div>
     <div class="dz" id="mdrop">
       <input type="file" id="minput" accept=".epub" multiple/>
       <div class="dz-ico">📚</div>
-      <p>Перетащите несколько <strong>.epub</strong> или нажмите</p>
-      <p style="margin-top:5px;font-size:11px;color:var(--text3)">Минимум 2 файла</p>
+      <p>Перетащите <strong>.epub</strong> сюда или нажмите для выбора</p>
+      <p style="margin-top:5px;font-size:11px;color:var(--text3)">Можно добавлять по одному или несколько сразу</p>
     </div>
   </div>
+
+  <!-- Список книг + порядок -->
   <div class="card glass" id="smord" style="display:none">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(10,132,255,.12)">↕</div>Порядок</div>
+    <div class="card-title" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title-icon" style="background:rgba(10,132,255,.12)">↕</div>
+        Порядок книг
+      </div>
+      <!-- Кнопка добавить ещё -->
+      <label class="btn btn-glass btn-sm" style="cursor:pointer;margin:0">
+        + Добавить ещё
+        <input type="file" id="minput2" accept=".epub" multiple style="display:none"/>
+      </label>
+    </div>
     <p style="font-size:11px;color:var(--text3);margin-bottom:12px">Перетащите для изменения порядка</p>
     <ul id="mlist"></ul>
   </div>
+
+  <!-- Параметры итоговой книги -->
   <div class="card glass" id="smset" style="display:none">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(48,209,88,.12)">⚙️</div>Параметры</div>
+    <div class="card-title"><div class="card-title-icon" style="background:rgba(48,209,88,.12)">⚙️</div>Параметры итоговой книги</div>
     <div class="row2">
-      <div class="fg"><label class="flabel">Название</label><input type="text" id="mgtitle" placeholder="Объединённая книга"/></div>
-      <div class="fg"><label class="flabel">Автор</label><input type="text" id="mgauth"/></div>
+      <div class="fg"><label class="flabel">Название</label><input type="text" id="mgtitle" placeholder="Объединённая книга" oninput="updateMgFilename()"/></div>
+      <div class="fg"><label class="flabel">Автор(ы)</label><input type="text" id="mgauth" oninput="updateMgFilename()"/></div>
     </div>
     <div class="row2 row1">
-      <div class="fg"><label class="flabel">Имя файла</label><input type="text" id="mgfile" value="merged.epub"/></div>
+      <div class="fg">
+        <label class="flabel">Имя файла <span style="color:var(--text3);font-size:10px;text-transform:none;letter-spacing:0">(можно изменить вручную)</span></label>
+        <input type="text" id="mgfile" value="merged.epub"/>
+      </div>
     </div>
   </div>
+
+  <!-- Обложка итоговой книги (идентична первой вкладке) -->
+  <div class="card glass" id="smcover" style="display:none">
+    <div class="card-title"><div class="card-title-icon" style="background:rgba(191,90,242,.12)">🎨</div>Обложка итоговой книги <span style="font-size:11px;font-weight:400;color:var(--text3)">(необязательно)</span></div>
+    <div class="ced">
+      <!-- Canvas / Cropper -->
+      <div class="stage-wrap">
+        <div class="stage-toolbar">
+          <div class="bgrp">
+            <input type="file" id="mg-cfile" accept="image/*" style="display:none"/>
+            <button class="btn btn-glass btn-sm" onclick="document.getElementById('mg-cfile').click()">📁 Изображение</button>
+            <button class="btn btn-glass btn-sm" id="mg-bcrop" style="display:none" onclick="mgEnterCrop()">✂️ Обрезать</button>
+            <button class="btn btn-green btn-sm" id="mg-bapply" style="display:none" onclick="mgApplyCrop()">✓ Применить</button>
+            <button class="btn btn-red btn-sm" id="mg-bcancel" style="display:none" onclick="mgExitCrop()">✕</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:11px;color:var(--text3)">Соотношение:</span>
+            <select id="mg-aratio" style="width:auto;padding:6px 10px;font-size:12px" onchange="mgOnRatioChange()">
+              <option value="0.6667">2 : 3 — книга</option>
+              <option value="0.636">0.636 — стандарт</option>
+              <option value="0.75">3 : 4</option>
+              <option value="1">1 : 1</option>
+              <option value="0.5625">9 : 16</option>
+              <option value="1.7778">16 : 9</option>
+            </select>
+          </div>
+        </div>
+        <div class="stage-inner">
+          <div id="mg-stage-cropper-wrap"><img id="mg-cropperImg" src="" alt=""/></div>
+          <div id="mg-stage-canvas-wrap"><canvas id="mg-cvs"></canvas></div>
+        </div>
+        <div class="stage-hint">Добавьте изображение или пропустите этот шаг</div>
+      </div>
+      <!-- Слои текста -->
+      <div class="rpanel">
+        <div class="rpanel-block">
+          <div class="rpanel-title">Текстовые слои</div>
+          <div class="llist" id="mg-llist"><div class="llist-empty">Нажмите «+ Добавить»</div></div>
+          <button class="btn btn-purple btn-sm" style="width:100%;justify-content:center" onclick="mgAddLayer()">+ Добавить текст</button>
+        </div>
+        <div class="rpanel-block" id="mg-ppanel" style="display:none">
+          <div class="rpanel-title">Свойства</div>
+          <div class="fg" style="margin-bottom:8px">
+            <div class="pg-label">Текст</div>
+            <input type="text" id="mg-ptxt" placeholder="Введите текст…" oninput="mgUpd('text',this.value)"/>
+          </div>
+          <!-- Шрифт -->
+          <div class="font-picker" id="mg-fontPickerWrap" style="margin-bottom:8px">
+            <div class="pg-label" style="margin-bottom:4px">Семейство шрифта</div>
+            <button type="button" class="fdd-trigger" id="mg-fddTrigger" onclick="mgToggleFontDd()">
+              <span class="fdd-trigger-label" id="mg-fddLabel">— Без шрифта —</span>
+              <span class="fdd-arrow">▼</span>
+            </button>
+            <div class="fdd-list" id="mg-fddList">
+              <div class="fdd-search"><input type="text" id="mg-fddSearch" placeholder="Поиск шрифта…" oninput="mgFilterFonts(this.value)" onclick="event.stopPropagation()"/></div>
+              <div id="mg-fddItems"></div>
+            </div>
+            <div class="font-style-scroll" id="mg-pstyles"></div>
+          </div>
+          <div class="pg2" style="margin-bottom:8px">
+            <div class="pg"><div class="pg-label">Цвет текста</div><input type="color" id="mg-pcolor" style="height:36px" oninput="mgUpd('color',this.value)"/></div>
+            <div class="pg"><div class="pg-label">Тень</div>
+              <select id="mg-pshad" onchange="mgUpd('shadow',this.value)">
+                <option value="none">Нет</option><option value="soft" selected>Мягкая</option>
+                <option value="hard">Жёсткая</option><option value="glow">Свечение</option>
+              </select>
+            </div>
+          </div>
+          <div class="pg" style="margin-bottom:6px"><div class="pg-label">Размер (px)</div>
+            <div class="slider-row">
+              <input type="range" id="mg-psize_r" min="4" max="300" value="52" oninput="syncNum('mg-psize','mg-psize_r');mgUpd('size',+this.value)"/>
+              <input type="number" id="mg-psize" min="4" max="800" value="52" oninput="syncRange('mg-psize','mg-psize_r');mgUpd('size',+this.value)"/>
+            </div>
+          </div>
+          <div class="pg" style="margin-bottom:6px"><div class="pg-label">Прозрачность %</div>
+            <div class="slider-row">
+              <input type="range" id="mg-popac_r" min="0" max="100" value="100" oninput="syncNum('mg-popac','mg-popac_r');mgUpd('opacity',+this.value)"/>
+              <input type="number" id="mg-popac" min="0" max="100" value="100" oninput="syncRange('mg-popac','mg-popac_r');mgUpd('opacity',+this.value)"/>
+            </div>
+          </div>
+          <div class="hr"></div>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="mgDelSel()">🗑 Удалить слой</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кнопка объединить -->
   <div id="smbtn" style="display:none">
     <div class="bgrp">
       <button class="btn btn-blue" onclick="execMerge()" id="bmerge"><span>🔗 Объединить</span><div class="ld" id="mload"></div></button>
@@ -1091,7 +1198,8 @@ const ctx = cvs.getContext('2d');
 let lid=0;
 let cropInst=null;
 
-const SNAP_DIST = 8; // px магнит
+const SNAP_DIST = 12; // px — зона притяжения
+const SNAP_MARGIN = 20; // px — отступ от краёв
 
 // ═══════════════════════════════════════════════
 // UTILS
@@ -1372,10 +1480,33 @@ function drawHandles(l,bw,bh){
   ctx.setLineDash([4,3]);ctx.strokeRect(-hw,-hh,hw*2,hh*2);ctx.setLineDash([]);
   [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].forEach(([cx,cy])=>hdot(ctx,cx,cy,'rgba(255,255,255,.9)'));
   hdot(ctx,0,-hh-22,'#0a84ff','⟳');
-  // Snap guides
-  if(l._snapH){
-    ctx.strokeStyle='rgba(10,132,255,.5)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
-    ctx.beginPath();ctx.moveTo(-cvs.width,0);ctx.lineTo(cvs.width,0);ctx.stroke();
+  // Направляющие при snap
+  if(l._snapH||l._guide){
+    ctx.strokeStyle='rgba(10,132,255,.6)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    const g=l._guide;
+    if(g==='cx'||g==='cy'||g==='left'||g==='right'||g==='top'||g==='bottom'){
+      ctx.beginPath();
+      if(g==='cx'){
+        // Вертикальная ось
+        ctx.moveTo(0,-cvs.height);ctx.lineTo(0,cvs.height);
+      } else if(g==='cy'){
+        // Горизонтальная ось
+        ctx.moveTo(-cvs.width,0);ctx.lineTo(cvs.width,0);
+      } else if(g==='left'){
+        const ex=-(l.x-(SNAP_MARGIN));
+        ctx.moveTo(ex,-cvs.height);ctx.lineTo(ex,cvs.height);
+      } else if(g==='right'){
+        const ex=cvs.width-SNAP_MARGIN-l.x;
+        ctx.moveTo(ex,-cvs.height);ctx.lineTo(ex,cvs.height);
+      } else if(g==='top'){
+        const ey=-(l.y-SNAP_MARGIN);
+        ctx.moveTo(-cvs.width,ey);ctx.lineTo(cvs.width,ey);
+      } else if(g==='bottom'){
+        const ey=cvs.height-SNAP_MARGIN-l.y;
+        ctx.moveTo(-cvs.width,ey);ctx.lineTo(cvs.width,ey);
+      }
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
   }
   ctx.restore();
@@ -1423,22 +1554,30 @@ function getHandles(l){
 function hitH(l,lx,ly){for(const h of getHandles(l))if(Math.hypot(lx-h.lx,ly-h.ly)<HR+5) return h;return null;}
 function hitL(l,px,py){const{x:lx,y:ly}=toLoc(l,px,py);if(!l._bw) return false;return Math.abs(lx)<l._bw/2+14&&Math.abs(ly)<l._bh/2+12;}
 
-// Магнитная привязка к центру и краям canvas
-function snapX(x,bw){
-  const cx=cvs.width/2;
-  const left=0,right=cvs.width;
-  // Центр текстового блока к центру canvas
-  if(Math.abs(x-cx)<SNAP_DIST) return{x:cx,snap:true};
-  // Левый край блока к левому краю
-  if(Math.abs(x-bw/2-left)<SNAP_DIST) return{x:bw/2,snap:false};
-  // Правый край блока к правому краю
-  if(Math.abs(x+bw/2-right)<SNAP_DIST) return{x:right-bw/2,snap:false};
-  return{x,snap:false};
+// Магнитная привязка — КРАЙ блока (не центр текста) к осям и краям
+function snapX(x, bw){
+  const half = bw/2 + 12; // полуширина блока включая ручки
+  const cx   = cvs.width/2;
+  const padL = SNAP_MARGIN, padR = cvs.width - SNAP_MARGIN;
+  // Центр блока → вертикальная ось
+  if(Math.abs(x - cx) < SNAP_DIST) return{x:cx, snap:true, guide:'cx'};
+  // Левый КРАЙ блока → левый край с отступом
+  if(Math.abs((x - half) - padL) < SNAP_DIST) return{x:padL+half, snap:false, guide:'left'};
+  // Правый КРАЙ блока → правый край с отступом
+  if(Math.abs((x + half) - padR) < SNAP_DIST) return{x:padR-half, snap:false, guide:'right'};
+  return{x, snap:false, guide:null};
 }
-function snapY(y,bh){
-  const cy=cvs.height/2;
-  if(Math.abs(y-cy)<SNAP_DIST) return{y:cy,snap:true};
-  return{y,snap:false};
+function snapY(y, bh){
+  const half = bh/2 + 10;
+  const cy   = cvs.height/2;
+  const padT = SNAP_MARGIN, padB = cvs.height - SNAP_MARGIN;
+  // Центр блока → горизонтальная ось
+  if(Math.abs(y - cy) < SNAP_DIST) return{y:cy, snap:true, guide:'cy'};
+  // Верхний КРАЙ → верх с отступом
+  if(Math.abs((y - half) - padT) < SNAP_DIST) return{y:padT+half, snap:false, guide:'top'};
+  // Нижний КРАЙ → низ с отступом
+  if(Math.abs((y + half) - padB) < SNAP_DIST) return{y:padB-half, snap:false, guide:'bottom'};
+  return{y, snap:false, guide:null};
 }
 
 function onDown(e){
@@ -1470,11 +1609,11 @@ function onMove(e){
   const{x,y}=cxy(e);
   if(drag.t==='mv'){
     let nx=x-drag.ox, ny=y-drag.oy;
-    // Snap
-    const bw=drag.l._bw||0,bh=drag.l._bh||0;
+    const bw=drag.l._bw||0, bh=drag.l._bh||0;
     const sx=snapX(nx,bw), sy=snapY(ny,bh);
     drag.l.x=sx.x; drag.l.y=sy.y;
-    drag.l._snapH=sx.snap||sy.snap;
+    drag.l._snapH = sx.snap||sy.snap;
+    drag.l._guide = sx.guide||sy.guide; // для отрисовки направляющей
   } else if(drag.t==='rot'){
     drag.l.rot=Math.atan2(y-drag.l.y,x-drag.l.x)-drag.a0;
     drag.l._snapH=false;
@@ -1493,7 +1632,7 @@ function onMove(e){
 }
 
 function onUp(){
-  if(drag&&drag.l) drag.l._snapH=false;
+  if(drag&&drag.l){ drag.l._snapH=false; drag.l._guide=null; }
   drag=null; redraw();
 }
 
@@ -1732,50 +1871,435 @@ function resetEd(){
 // ═══════════════════════════════════════════════
 // MERGE
 // ═══════════════════════════════════════════════
+// ══ MERGE: загрузка файлов ══════════════════════
+
+// Добавляем файлы (по одному или несколько)
 async function loadMergeFiles(files){
   const eps=Array.from(files).filter(f=>f.name.endsWith('.epub'));
-  if(eps.length<2){toast('Нужно минимум 2 epub','err');return;}
-  S.mg.files=[];
+  if(!eps.length){toast('Нет .epub файлов','err');return;}
+  let added=0;
   for(const f of eps){
+    // Не добавляем дубликаты
+    if(S.mg.files.some(e=>e.name===f.name)) continue;
     try{
       const ab=await f.arrayBuffer(),zip=await JSZip.loadAsync(ab);
       const op=await findOpf(zip);
       const od=new DOMParser().parseFromString(await zip.file(op).async('string'),'application/xml');
       S.mg.files.push({name:f.name,zip,opfPath:op,opfDoc:od,meta:parseMeta(od)});
-    }catch(e){toast(`Ошибка ${f.name}`,'err');}
+      added++;
+    }catch(e){toast(`Ошибка: ${f.name}`,'err');}
   }
-  if(S.mg.files.length<2){toast('Не удалось загрузить файлы','err');return;}
+  if(!added){toast('Файлы уже добавлены','err');return;}
   renderML();
+  updateMgMeta();
+  show('smord');show('smset');show('smcover');show('smbtn');
+  toast(`Добавлено: ${added}. Всего: ${S.mg.files.length}`,'ok');
+}
+
+// Обновляем метаданные и имя файла при добавлении книг
+function updateMgMeta(){
   const titles=S.mg.files.map(f=>f.meta.title).filter(Boolean);
   const auths=[...new Set(S.mg.files.map(f=>f.meta.author).filter(Boolean))];
-  document.getElementById('mgtitle').value=titles.join(' + ')||'Объединённая книга';
-  document.getElementById('mgauth').value=auths.join(', ')||'';
-  const t=safeName(titles[0]||'merged');
-  document.getElementById('mgfile').value=`${t} - объединение.epub`;
-  show('smord');show('smset');show('smbtn');
-  toast(`Загружено ${S.mg.files.length} файлов`,'ok');
+  document.getElementById('mgtitle').value=titles.length?'Антология: '+titles.join(' + '):'Объединённая книга';
+  document.getElementById('mgauth').value=auths.join(' + ')||'';
+  updateMgFilename();
+  // Инициализируем canvas обложки если ещё не
+  if(!S.mg.cvs){
+    const c=document.getElementById('mg-cvs');
+    if(c){
+      S.mg.cvs=c;
+      S.mg.ctx=c.getContext('2d');
+      mgInitCanvas();
+    }
+  }
+}
+
+// Автоматическое имя файла: Антология «Название1» + «Название2» - «Автор1» + «Автор2»
+function updateMgFilename(){
+  const title=document.getElementById('mgtitle').value.trim();
+  const author=document.getElementById('mgauth').value.trim();
+  const t=safeName(title)||'Антология';
+  const a=safeName(author);
+  document.getElementById('mgfile').value = a ? `${t} - ${a}.epub` : `${t}.epub`;
 }
 
 function renderML(){
   const list=document.getElementById('mlist');list.innerHTML='';
   S.mg.files.forEach((f,i)=>{
     const li=document.createElement('li');li.draggable=true;li.dataset.i=i;
-    li.innerHTML=`<span class="fnum">${i+1}</span><span class="dh">⠿</span><div class="mfi"><div class="mfn">${f.name}</div><div class="mfm">${f.meta.title||'—'} · ${f.meta.author||'—'}</div></div><button class="btn btn-red btn-sm" onclick="rmMg(${i})">✕</button>`;
+    li.innerHTML=`<span class="fnum">${i+1}</span><span class="dh">⠿</span><div class="mfi"><div class="mfn">${eh(f.name)}</div><div class="mfm">${eh(f.meta.title||'—')} · ${eh(f.meta.author||'—')}</div></div><button class="btn btn-red btn-sm" onclick="rmMg(${i})">✕</button>`;
     setupDI(li);list.appendChild(li);
   });
 }
-function rmMg(i){S.mg.files.splice(i,1);renderML();if(S.mg.files.length<2)hide('smbtn');}
+
+function rmMg(i){
+  S.mg.files.splice(i,1);
+  renderML();
+  updateMgMeta();
+  // Скрываем объединить если осталась 1 или 0 книга
+  if(S.mg.files.length<2) hide('smbtn');
+  if(!S.mg.files.length){hide('smord');hide('smset');hide('smcover');}
+}
+
 let _ds=null;
 function setupDI(li){
   li.addEventListener('dragstart',()=>{_ds=li;li.classList.add('dg2');});
   li.addEventListener('dragend',()=>li.classList.remove('dg2'));
   li.addEventListener('dragover',e=>{e.preventDefault();li.classList.add('dov');});
   li.addEventListener('dragleave',()=>li.classList.remove('dov'));
-  li.addEventListener('drop',e=>{e.preventDefault();li.classList.remove('dov');if(!_ds||_ds===li) return;const si=parseInt(_ds.dataset.i),di=parseInt(li.dataset.i);const[m]=S.mg.files.splice(si,1);S.mg.files.splice(di,0,m);renderML();});
+  li.addEventListener('drop',e=>{e.preventDefault();li.classList.remove('dov');if(!_ds||_ds===li) return;const si=parseInt(_ds.dataset.i),di=parseInt(li.dataset.i);const[m]=S.mg.files.splice(si,1);S.mg.files.splice(di,0,m);renderML();updateMgMeta();});
+}
+
+// Кнопка "Добавить ещё"
+document.getElementById('minput2')?.addEventListener('change',function(){ loadMergeFiles(this.files); this.value=''; });
+
+// ══ MERGE: обложка (параллельная система, не мешает главному редактору) ══
+
+// Состояние обложки объединения — хранится в S.mg
+Object.assign(S.mg, {
+  rawImg:null, croppedImg:null, layers:[], selId:null, cropInst:null,
+  cvs:null, ctx:null,
+});
+
+let _mgLid=0;
+
+function mgMakeLayer(){
+  const c=S.mg.cvs;
+  return{id:++_mgLid,text:'Текст',x:c?c.width/2:200,y:c?c.height*.85:300,
+    size:c?Math.round(c.height*.08):50,color:'#ffffff',fontFamily:'',fontFile:'',otFont:null,
+    align:'center',shadow:'soft',opacity:100,lineH:1.2,rot:0,bold:false,italic:false,strike:false,
+    _bw:null,_bh:null,_snapH:false,_guide:null};
+}
+
+function mgInitCanvas(){
+  const c=S.mg.cvs; if(!c) return;
+  const src=S.mg.croppedImg||S.mg.rawImg;
+  if(src){
+    const mw=600,mh=480,sc=Math.min(mw/src.width,mh/src.height,1);
+    c.width=Math.round(src.width*sc); c.height=Math.round(src.height*sc);
+  } else {
+    const r=parseFloat(document.getElementById('mg-aratio').value);
+    c.width=400; c.height=Math.round(400/r);
+  }
+  mgRedraw();
+}
+
+function mgOnRatioChange(){
+  if(S.mg.cropInst){const r=parseFloat(document.getElementById('mg-aratio').value);S.mg.cropInst.setAspectRatio(r);}
+}
+
+function mgEnterCrop(){
+  if(!S.mg.rawImg){toast('Сначала выберите изображение','err');return;}
+  const tmp=document.createElement('canvas');
+  tmp.width=S.mg.rawImg.width; tmp.height=S.mg.rawImg.height;
+  tmp.getContext('2d').drawImage(S.mg.rawImg,0,0);
+  const img=document.getElementById('mg-cropperImg');
+  if(S.mg.cropInst){S.mg.cropInst.destroy();S.mg.cropInst=null;}
+  document.getElementById('mg-stage-cropper-wrap').style.display='block';
+  document.getElementById('mg-stage-canvas-wrap').style.display='none';
+  hide('mg-bcrop'); show('mg-bapply'); show('mg-bcancel');
+  img.onload=()=>{
+    const r=parseFloat(document.getElementById('mg-aratio').value);
+    S.mg.cropInst=new Cropper(img,{aspectRatio:r,viewMode:1,autoCropArea:.95,responsive:true,background:false});
+  };
+  img.src=tmp.toDataURL('image/jpeg',.92);
+}
+async function mgApplyCrop(){
+  if(!S.mg.cropInst){mgExitCrop();return;}
+  S.mg.croppedImg=await createImageBitmap(S.mg.cropInst.getCroppedCanvas());
+  mgExitCrop(); mgInitCanvas(); toast('Обрезка применена','ok');
+}
+function mgExitCrop(){
+  if(S.mg.cropInst){S.mg.cropInst.destroy();S.mg.cropInst=null;}
+  document.getElementById('mg-stage-cropper-wrap').style.display='none';
+  document.getElementById('mg-stage-canvas-wrap').style.display='flex';
+  show('mg-bcrop'); hide('mg-bapply'); hide('mg-bcancel');
+  mgRedraw();
+}
+
+document.getElementById('mg-cfile')?.addEventListener('change',async function(){
+  const f=this.files[0];if(!f) return;
+  S.mg.rawImg=await createImageBitmap(f); S.mg.croppedImg=null;
+  document.getElementById('mg-bcrop').style.display='inline-flex';
+  mgInitCanvas();
+});
+
+function mgRedraw(){
+  const c=S.mg.cvs,ctx=S.mg.ctx; if(!c||!ctx) return;
+  ctx.clearRect(0,0,c.width,c.height);
+  const src=S.mg.croppedImg||S.mg.rawImg;
+  if(src){ ctx.drawImage(src,0,0,c.width,c.height); }
+  else {
+    ctx.fillStyle='#0a0a12';ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.font='11px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Загрузите изображение обложки',c.width/2,c.height/2);
+  }
+  S.mg.layers.forEach(l=>mgDrawLayer(l,l.id===S.mg.selId));
+}
+
+// Рисуем слой — идентично главному редактору
+function mgDrawLayer(l,sel){
+  const ctx=S.mg.ctx; if(!ctx) return;
+  ctx.save();
+  ctx.translate(l.x,l.y); ctx.rotate(l.rot||0);
+  ctx.globalAlpha=(l.opacity||100)/100;
+  const font=l.otFont||null, sz=l.size||48;
+  const lh=sz*(l.lineH||1.2);
+  const lines=(l.text||'').split('
+');
+  const totalH=lh*lines.length;
+  const widths=lines.map(ln=>mW(ctx,font,ln,sz,l));
+  const maxW=Math.max(...widths,1);
+  l._bw=maxW; l._bh=totalH;
+  setShadow(ctx,l.shadow||'soft');
+  let cy=-totalH/2+sz*.82;
+  lines.forEach((ln,i)=>{
+    const lw=widths[i]; let ox=0;
+    if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+    if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(ctx);}
+    else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;ctx.font=ff;ctx.fillStyle=l.color||'#fff';ctx.textAlign=l.align||'center';ctx.textBaseline='alphabetic';ctx.fillText(ln,0,cy);}
+    if(l.strike){ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.fillStyle=l.color||'#fff';ctx.fillRect(ox,cy-sz*.3,lw,sz*.07);setShadow(ctx,l.shadow||'soft');}
+    cy+=lh;
+  });
+  ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+  ctx.restore();
+  if(sel) mgDrawHandles(l,maxW,totalH);
+}
+
+function mgDrawHandles(l,bw,bh){
+  const ctx=S.mg.ctx,c=S.mg.cvs; if(!ctx||!c) return;
+  const hw=bw/2+12,hh=bh/2+10;
+  ctx.save();
+  ctx.translate(l.x,l.y); ctx.rotate(l.rot||0); ctx.globalAlpha=1;
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,.7)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]); ctx.strokeRect(-hw,-hh,hw*2,hh*2); ctx.setLineDash([]);
+  [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].forEach(([x,y])=>hdot(ctx,x,y,'rgba(255,255,255,.9)'));
+  hdot(ctx,0,-hh-22,'#0a84ff','⟳');
+  ctx.restore();
+}
+
+// Взаимодействие с canvas обложки объединения
+const mgCvs=document.getElementById('mg-cvs');
+if(mgCvs){
+  let mgDrag=null;
+  function mgCxy(e){const r=mgCvs.getBoundingClientRect();const sx=mgCvs.width/r.width,sy=mgCvs.height/r.height;return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
+  mgCvs.addEventListener('mousedown',e=>{
+    const{x,y}=mgCxy(e);
+    const sel=S.mg.layers.find(l=>l.id===S.mg.selId);
+    if(sel){const{x:lx,y:ly}=toLoc(sel,x,y);if(hitH(sel,lx,ly)){return;}}
+    for(let i=S.mg.layers.length-1;i>=0;i--){
+      if(hitL(S.mg.layers[i],x,y)){mgSelLayer(S.mg.layers[i].id);mgDrag={l:S.mg.layers[i],ox:x-S.mg.layers[i].x,oy:y-S.mg.layers[i].y};return;}
+    }
+    mgSelLayer(null);
+  });
+  mgCvs.addEventListener('mousemove',e=>{
+    if(!mgDrag) return;
+    const{x,y}=mgCxy(e);
+    mgDrag.l.x=x-mgDrag.ox; mgDrag.l.y=y-mgDrag.oy;
+    mgRedraw();
+  });
+  mgCvs.addEventListener('mouseup',()=>{mgDrag=null;});
+  mgCvs.addEventListener('dblclick',e=>{
+    const{x,y}=mgCxy(e);
+    for(let i=S.mg.layers.length-1;i>=0;i--){
+      if(hitL(S.mg.layers[i],x,y)){
+        mgSelLayer(S.mg.layers[i].id);
+        const t=prompt('Изменить текст:',S.mg.layers[i].text);
+        if(t!==null){S.mg.layers[i].text=t;document.getElementById('mg-ptxt').value=t;mgRenderLL();mgRedraw();}
+        return;
+      }
+    }
+  });
+  // Touch
+  mgCvs.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];mgCvs.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
+  mgCvs.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];mgCvs.dispatchEvent(new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
+  mgCvs.addEventListener('touchend',()=>mgCvs.dispatchEvent(new MouseEvent('mouseup')));
+}
+
+function mgAddLayer(){
+  const l=mgMakeLayer(); S.mg.layers.push(l);
+  mgSelLayer(l.id); mgRenderLL(); mgRedraw();
+}
+function mgDelSel(){
+  if(!S.mg.selId) return;
+  S.mg.layers=S.mg.layers.filter(l=>l.id!==S.mg.selId);
+  S.mg.selId=null; hide('mg-ppanel'); mgRenderLL(); mgRedraw();
+}
+function mgSelLayer(id){
+  S.mg.selId=id; mgRenderLL();
+  if(id){const l=S.mg.layers.find(x=>x.id===id);if(l){mgFillProps(l);show('mg-ppanel');}}
+  else hide('mg-ppanel');
+  mgRedraw();
+}
+function mgRenderLL(){
+  const el=document.getElementById('mg-llist'); if(!el) return;
+  if(!S.mg.layers.length){el.innerHTML='<div class="llist-empty">Нажмите «+ Добавить»</div>';return;}
+  el.innerHTML=[...S.mg.layers].reverse().map(l=>`
+    <div class="litem${l.id===S.mg.selId?' sel':''}" onclick="mgSelLayer(${l.id})">
+      <span class="litem-label">${eh(l.text||'(пусто)')}</span>
+      <span class="litem-del" onclick="event.stopPropagation();S.mg.layers=S.mg.layers.filter(x=>x.id!==${l.id});if(S.mg.selId===${l.id}){S.mg.selId=null;hide('mg-ppanel');}mgRenderLL();mgRedraw();">✕</span>
+    </div>`).join('');
+}
+function mgFillProps(l){
+  document.getElementById('mg-ptxt').value=l.text;
+  document.getElementById('mg-psize').value=l.size;
+  document.getElementById('mg-psize_r').value=Math.min(l.size,300);
+  document.getElementById('mg-pcolor').value=l.color||'#ffffff';
+  document.getElementById('mg-pshad').value=l.shadow||'soft';
+  document.getElementById('mg-popac').value=l.opacity??100;
+  document.getElementById('mg-popac_r').value=l.opacity??100;
+  // Шрифт
+  const fddLabel=document.getElementById('mg-fddLabel');
+  if(fddLabel) fddLabel.textContent=l.fontFamily||'— Без шрифта —';
+  renderStylePillsFor('mg-pstyles','mg-fddItems',l.fontFamily||'',l.fontFile||'',true);
+}
+function mgUpd(k,v){
+  const l=S.mg.layers.find(x=>x.id===S.mg.selId);if(!l) return;
+  l[k]=v;mgRedraw();
+}
+
+// Дропдаун шрифтов для обложки объединения — использует тот же FONT_DATA
+let _mgFddOpen=false;
+function mgToggleFontDd(){
+  _mgFddOpen=!_mgFddOpen;
+  const list=document.getElementById('mg-fddList');
+  const trigger=document.getElementById('mg-fddTrigger');
+  list?.classList.toggle('open',_mgFddOpen);
+  trigger?.classList.toggle('open',_mgFddOpen);
+  if(_mgFddOpen){
+    // Копируем элементы из основного дропдауна если пустой
+    const mgItems=document.getElementById('mg-fddItems');
+    if(mgItems&&!mgItems.children.length) buildMgFontDropdown();
+    document.getElementById('mg-fddSearch')?.focus();
+  }
+}
+function buildMgFontDropdown(){
+  const container=document.getElementById('mg-fddItems'); if(!container) return;
+  container.innerHTML='';
+  const noFont=makeFddItemFor(container,'','— Без шрифта —',[],null,true);
+  for(const fam of Object.keys(FONT_DATA).sort()){
+    const styles=FONT_DATA[fam]||[];
+    makeFddItemFor(container,fam,fam,styles,styles[0]?.file||null,true);
+  }
+}
+function makeFddItemFor(container,fam,label,styles,previewFile,isMg){
+  const div=document.createElement('div');
+  div.className='fdd-item'; div.dataset.fam=fam;
+  const cvP=document.createElement('canvas'); cvP.className='fdd-preview'; cvP.width=240; cvP.height=72;
+  const meta=document.createElement('div'); meta.className='fdd-meta';
+  const nd=document.createElement('div'); nd.className='fdd-name'; nd.textContent=label;
+  const sd=document.createElement('div'); sd.className='fdd-styles'; sd.textContent=styles.length>1?styles.length+' начертаний':'';
+  meta.appendChild(nd); meta.appendChild(sd);
+  div.appendChild(cvP); div.appendChild(meta);
+  if(fam&&previewFile) drawFontPreview(cvP,previewFile,fam);
+  else{const p=cvP.getContext('2d');p.fillStyle='#ffffff';p.font='italic 22px serif';p.textBaseline='middle';p.fillText('serif',8,36);}
+  div.onclick=()=>{
+    if(isMg) onMgFamilyChange(fam,div);
+    else onFamilyChange(fam,div);
+  };
+  container.appendChild(div);
+  return div;
+}
+async function onMgFamilyChange(fam,clickedItem){
+  _mgFddOpen=false;
+  document.getElementById('mg-fddList')?.classList.remove('open');
+  document.getElementById('mg-fddTrigger')?.classList.remove('open');
+  document.getElementById('mg-fddLabel').textContent=fam||'— Без шрифта —';
+  document.querySelectorAll('#mg-fddItems .fdd-item').forEach(i=>i.classList.remove('sel'));
+  if(clickedItem) clickedItem.classList.add('sel');
+  const l=S.mg.layers.find(x=>x.id===S.mg.selId);
+  if(!fam){if(l){l.fontFamily='';l.fontFile='';l.otFont=null;mgRedraw();}return;}
+  if(l) l.fontFamily=fam;
+  const styles=FONT_DATA[fam]||[];
+  const first=styles[0];
+  renderStylePillsFor('mg-pstyles','mg-fddItems',fam,first?.file||'',true);
+  if(first&&l) await mgApplyFontFile(l,first.file);
+}
+async function mgApplyFontFile(layer,filename){
+  if(!filename){layer.fontFile='';layer.otFont=null;mgRedraw();return;}
+  layer.fontFile=filename;
+  if(FONT_CACHE[filename]){layer.otFont=FONT_CACHE[filename];mgRedraw();return;}
+  toast('Загружаю шрифт…');
+  try{
+    const b64=await ensureB64(filename); if(!b64) throw new Error('not found');
+    const font=opentype.parse(b64ToArrayBuffer(b64));
+    FONT_CACHE[filename]=font; layer.otFont=font; mgRedraw();
+    toast('Шрифт применён','ok');
+  }catch(e){layer.otFont=null;mgRedraw();toast('Ошибка загрузки шрифта','err');}
+}
+function mgFilterFonts(q){
+  q=q.toLowerCase().trim();
+  document.querySelectorAll('#mg-fddItems .fdd-item').forEach(i=>{
+    i.style.display=(!q||i.dataset.fam.toLowerCase().includes(q))?'':'none';
+  });
+}
+document.addEventListener('click',e=>{
+  if(_mgFddOpen&&!document.getElementById('mg-fontPickerWrap')?.contains(e.target)) {
+    _mgFddOpen=false;
+    document.getElementById('mg-fddList')?.classList.remove('open');
+    document.getElementById('mg-fddTrigger')?.classList.remove('open');
+  }
+});
+
+// Вспомогательная — рисует pills для любого контейнера
+function renderStylePillsFor(pillsId,ddId,fam,activeFile,isMg){
+  const wrap=document.getElementById(pillsId); if(!wrap) return;
+  wrap.innerHTML='';
+  if(!fam) return;
+  const styles=FONT_DATA[fam]||[];
+  styles.forEach(s=>{
+    const btn=document.createElement('button');
+    btn.className='fstyle-btn'+(s.file===activeFile?' active':'');
+    btn.textContent=s.style;
+    btn.onclick=async()=>{
+      wrap.querySelectorAll('.fstyle-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if(isMg){const l=S.mg.layers.find(x=>x.id===S.mg.selId);if(l) await mgApplyFontFile(l,s.file);}
+      else {const l=S.layers.find(x=>x.id===S.selId);if(l) await applyFontFile(l,s.file);}
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+// Финальный рендер обложки объединения в полном разрешении
+async function mgRenderFinal(){
+  const src=S.mg.croppedImg||S.mg.rawImg;
+  if(!src&&!S.mg.layers.length) return null;
+  const c=S.mg.cvs; if(!c) return null;
+  const ow=src?src.width:c.width, oh=src?src.height:c.height;
+  const sc=ow/c.width;
+  const fc=document.createElement('canvas'); fc.width=ow; fc.height=oh;
+  const fc2=fc.getContext('2d');
+  if(src) fc2.drawImage(src,0,0,ow,oh);
+  else{fc2.fillStyle='#0a0a12';fc2.fillRect(0,0,ow,oh);}
+  for(const l of S.mg.layers){
+    fc2.save();
+    fc2.translate(l.x*sc,l.y*sc); fc2.rotate(l.rot||0); fc2.globalAlpha=(l.opacity||100)/100;
+    const font=l.otFont||null, sz=l.size*sc;
+    const lhpx=sz*(l.lineH||1.2);
+    const lines=(l.text||'').split('
+');
+    const totalH=lhpx*lines.length;
+    const widths=lines.map(ln=>mW(fc2,font,ln,sz,l));
+    setShadow(fc2,l.shadow||'soft');
+    let cy=-totalH/2+sz*.82;
+    for(let i=0;i<lines.length;i++){
+      const ln=lines[i],lw=widths[i]; let ox=0;
+      if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+      if(font){const p2=font.getPath(ln,ox,cy,sz);p2.fill=l.color||'#fff';p2.draw(fc2);}
+      else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;fc2.font=ff;fc2.fillStyle=l.color||'#fff';fc2.textAlign=l.align||'center';fc2.textBaseline='alphabetic';fc2.fillText(ln,0,cy);}
+      if(l.strike){fc2.fillStyle=l.color||'#fff';fc2.fillRect(ox,cy-sz*.3,lw,sz*.07);}
+      cy+=lhpx;
+    }
+    fc2.restore();
+  }
+  return new Promise(res=>fc.toBlob(res,'image/jpeg',.95));
 }
 
 async function execMerge(){
-  if(S.mg.files.length<2){toast('Нужно минимум 2 файла','err');return;}
+  if(S.mg.files.length<2){toast('Для объединения нужно минимум 2 книги','err');return;}
   setLd('mload','bmerge',true);startPb('mpbar','mpfill');
   try{
     const T=document.getElementById('mgtitle').value||'Объединённая книга';
@@ -1812,6 +2336,13 @@ async function execMerge(){
     oz.file('OEBPS/toc.ncx',bldNcx(T,tc));oz.file('OEBPS/nav.xhtml',bldNav(T,tc));
     mf['ncx']={href:'toc.ncx',mediaType:'application/x-dtbncx+xml'};
     mf['nav']={href:'nav.xhtml',mediaType:'application/xhtml+xml',properties:'nav'};
+    // Обложка итоговой книги (если задана)
+    const mgCoverBlob = await mgRenderFinal();
+    if(mgCoverBlob){
+      const mgCoverAb = await mgCoverBlob.arrayBuffer();
+      oz.file('OEBPS/images/cover.jpg', mgCoverAb);
+      mf['mg-cover']={href:'images/cover.jpg',mediaType:'image/jpeg',properties:'cover-image'};
+    }
     oz.file('OEBPS/content.opf',bldOpf(T,A,mf,sp));
     document.getElementById('mpfill').style.width='85%';
     const blob=await oz.generateAsync({type:'blob',mimeType:'application/epub+zip',compression:'DEFLATE',compressionOptions:{level:6}});
@@ -1823,7 +2354,16 @@ async function execMerge(){
 function bldOpf(T,A,mf,sp){const uid=(crypto.randomUUID?.())||Math.random().toString(36).slice(2);const items=Object.entries(mf).map(([id,it])=>`<item id="${esc(id)}" href="${esc(it.href)}" media-type="${esc(it.mediaType)}"${it.properties?` properties="${it.properties}"`:''}/>`).join('');const sins=sp.map(h=>{const id=Object.entries(mf).find(([,v])=>v.href===h)?.[0];return id?`<itemref idref="${esc(id)}"/>`:'';}).filter(Boolean).join('');return`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="BookId">${uid}</dc:identifier><dc:title>${esc(T)}</dc:title><dc:creator>${esc(A)}</dc:creator><dc:language>ru</dc:language><meta property="dcterms:modified">2024-01-01T00:00:00Z</meta></metadata><manifest>${items}</manifest><spine toc="ncx">${sins}</spine></package>`;}
 function bldNcx(T,tc){let po=0;const pts=tc.map(s=>{po++;const ch=(s.children||[]).map(c=>{po++;return`<navPoint id="np${po}" playOrder="${po}"><navLabel><text>${esc(c.label)}</text></navLabel><content src="${esc(c.href)}"/></navPoint>`;}).join('');return`<navPoint id="np${po}" playOrder="${po}"><navLabel><text>${esc(s.label)}</text></navLabel><content src="${esc(s.href||s.children?.[0]?.href||'')}"/>${ch}</navPoint>`;}).join('');return`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd"><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="book-id"/></head><docTitle><text>${esc(T)}</text></docTitle><navMap>${pts}</navMap></ncx>`;}
 function bldNav(T,tc){const items=tc.map(s=>{const h=s.href||s.children?.[0]?.href||'';const ch=(s.children||[]).map(c=>`<li><a href="${esc(c.href)}">${esc(c.label)}</a></li>`).join('');return`<li><a href="${esc(h)}">${esc(s.label)}</a>${ch?`<ol>${ch}</ol>`:''}</li>`;}).join('');return`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><meta charset="utf-8"/><title>Оглавление</title></head><body><nav epub:type="toc"><h1>${esc(T)}</h1><ol>${items}</ol></nav></body></html>`;}
-function resetMg(){S.mg.files=[];hide('smord');hide('smset');hide('smbtn');document.getElementById('minput').value='';document.getElementById('mlist').innerHTML='';}
+function resetMg(){
+  S.mg.files=[];
+  S.mg.rawImg=null; S.mg.croppedImg=null; S.mg.layers=[]; S.mg.selId=null;
+  if(S.mg.cropInst){S.mg.cropInst.destroy();S.mg.cropInst=null;}
+  hide('smord');hide('smset');hide('smcover');hide('smbtn');hide('mg-ppanel');
+  document.getElementById('minput').value='';
+  document.getElementById('minput2').value='';
+  document.getElementById('mlist').innerHTML='';
+  if(S.mg.ctx) S.mg.ctx.clearRect(0,0,S.mg.cvs?.width||0,S.mg.cvs?.height||0);
+}
 
 // ═══════════════════════════════════════════════
 // INIT
