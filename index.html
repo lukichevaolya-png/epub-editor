@@ -340,15 +340,8 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
 .fdd-list::-webkit-scrollbar{width:4px}
 .fdd-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
 
-/* Мобильный — fixed overlay, позиция задаётся через JS */
+/* Мобильный — увеличиваем tap-area, позиция через JS */
 @media(max-width:580px){
-  .fdd-list{
-    position:fixed;
-    left:8px;right:8px;
-    max-height:min(360px,58vh);
-    z-index:900;
-    /* top задаётся через JS — не перебиваем здесь */
-  }
   .fdd-item{min-height:50px;padding:8px 12px;}
 }
 
@@ -1257,31 +1250,58 @@ function toggleFontDropdown(){
   list.classList.toggle('open', _fddOpen);
   trigger.classList.toggle('open', _fddOpen);
   if(_fddOpen){
-    // Ставим флаг — следующий touchstart/click НЕ должен закрывать список
     _fddJustOpened = true;
     setTimeout(()=>{ _fddJustOpened = false; }, 300);
-    // На мобильном позиционируем через fixed
-    if(window.innerWidth <= 580){
-      const trigRect = trigger.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - trigRect.bottom;
-      const listH = Math.min(360, window.innerHeight * 0.58);
-      if(spaceBelow < listH && trigRect.top > listH){
-        list.style.top = (trigRect.top - listH - 4) + 'px';
+
+    // Позиционирование: на любом экране вычисляем куда открыть
+    const isMobile = window.innerWidth <= 700;
+    if(isMobile){
+      // На мобильном: fixed, под триггером или над ним
+      const tr = trigger.getBoundingClientRect();
+      const listH = Math.min(360, window.innerHeight * 0.55);
+      const spaceBelow = window.innerHeight - tr.bottom - 8;
+      list.style.position = 'fixed';
+      list.style.left = '8px';
+      list.style.right = '8px';
+      list.style.width = 'auto';
+      list.style.maxHeight = listH + 'px';
+      if(spaceBelow >= 120){
+        // Места снизу достаточно — открываем вниз
+        list.style.top = (tr.bottom + 4) + 'px';
+        list.style.bottom = 'auto';
       } else {
-        list.style.top = (trigRect.bottom + 4) + 'px';
+        // Открываем вверх
+        list.style.bottom = (window.innerHeight - tr.top + 4) + 'px';
+        list.style.top = 'auto';
       }
+    } else {
+      // Десктоп: absolute, через CSS
+      list.style.position = '';
+      list.style.left = '';
+      list.style.right = '';
+      list.style.top = '';
+      list.style.bottom = '';
+      list.style.width = '';
+      list.style.maxHeight = '';
     }
+
     document.getElementById('fddSearch').value = '';
     filterFonts('');
-    // На мобильном не фокусируем — открывает клавиатуру
-    if(window.innerWidth > 580){
+    if(!isMobile){
       setTimeout(()=>document.getElementById('fddSearch').focus(), 50);
     }
   }
 }
 function hideFontDropdown(){
   _fddOpen = false;
-  document.getElementById('fddList')?.classList.remove('open');
+  const list = document.getElementById('fddList');
+  if(list){
+    list.classList.remove('open');
+    // Сбрасываем inline-стили позиционирования
+    list.style.position='';list.style.left='';list.style.right='';
+    list.style.top='';list.style.bottom='';
+    list.style.width='';list.style.maxHeight='';
+  }
   document.getElementById('fddTrigger')?.classList.remove('open');
 }
 // Закрывать при клике/тапе вне дропдауна
@@ -2402,16 +2422,34 @@ function mgToggleFontDd(){
   if(_mgFddOpen){
     _mgFddJustOpened=true;
     setTimeout(()=>{ _mgFddJustOpened=false; }, 300);
-    // Позиционирование на мобильном
-    if(window.innerWidth<=580&&list&&trigger){
+
+    const isMobile = window.innerWidth <= 700;
+    if(isMobile && list && trigger){
       const tr=trigger.getBoundingClientRect();
-      const lh=Math.min(360,window.innerHeight*0.58);
-      list.style.top=(window.innerHeight-tr.bottom>lh||tr.top<=lh)
-        ?(tr.bottom+4)+'px':(tr.top-lh-4)+'px';
+      const listH=Math.min(360,window.innerHeight*0.55);
+      const spaceBelow=window.innerHeight-tr.bottom-8;
+      list.style.position='fixed';
+      list.style.left='8px';
+      list.style.right='8px';
+      list.style.width='auto';
+      list.style.maxHeight=listH+'px';
+      if(spaceBelow>=120){
+        list.style.top=(tr.bottom+4)+'px';
+        list.style.bottom='auto';
+      } else {
+        list.style.bottom=(window.innerHeight-tr.top+4)+'px';
+        list.style.top='auto';
+      }
+    } else if(list){
+      list.style.position='';
+      list.style.left='';list.style.right='';
+      list.style.top='';list.style.bottom='';
+      list.style.width='';list.style.maxHeight='';
     }
+
     const mgItems=document.getElementById('mg-fddItems');
     if(mgItems&&!mgItems.children.length) buildMgFontDropdown();
-    if(window.innerWidth>580) document.getElementById('mg-fddSearch')?.focus();
+    if(!isMobile) document.getElementById('mg-fddSearch')?.focus();
   }
 }
 function buildMgFontDropdown(){
