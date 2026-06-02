@@ -726,17 +726,10 @@ input[type=range]::-webkit-slider-thumb{
           <!-- Bold / Italic / Strike -->
           <div class="pg" style="margin-bottom:10px">
             <div class="pg-label">Начертание</div>
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <div class="style-toggles">
-                <button class="stog" id="tbold"   onclick="togStyle('bold')"   title="Жирный"><b>B</b></button>
-                <button class="stog" id="tital"   onclick="togStyle('italic')" title="Курсив"><i>I</i></button>
-                <button class="stog" id="tstrike" onclick="togStyle('strike')" title="Зачёркнутый"><s>S</s></button>
-              </div>
-              <div class="align-btns" style="flex:1">
-                <button class="align-btn" data-a="left"   onclick="setAlign('left')"   title="Влево">⬛⬜⬜</button>
-                <button class="align-btn" data-a="center" onclick="setAlign('center')" title="По центру">⬜⬛⬜</button>
-                <button class="align-btn" data-a="right"  onclick="setAlign('right')"  title="Вправо">⬜⬜⬛</button>
-              </div>
+            <div class="style-toggles">
+              <button class="stog" id="tbold"   onclick="togStyle('bold')"   title="Жирный"><b>B</b></button>
+              <button class="stog" id="tital"   onclick="togStyle('italic')" title="Курсив"><i>I</i></button>
+              <button class="stog" id="tstrike" onclick="togStyle('strike')" title="Зачёркнутый"><s>S</s></button>
             </div>
           </div>
 
@@ -804,6 +797,7 @@ input[type=range]::-webkit-slider-thumb{
       <button class="btn btn-blue" onclick="saveEpub()" id="bsave">
         <span>💾 Сохранить EPUB</span><div class="ld" id="sload"></div>
       </button>
+      <button class="btn btn-glass" onclick="showMaskPreview()" title="Предпросмотр с учётом маски">👁 Предпросмотр</button>
       <button class="btn btn-glass" onclick="resetEd()">Сбросить</button>
     </div>
     <div class="pbar" id="spbar"><div class="pfill" id="spfill"></div></div>
@@ -1488,58 +1482,90 @@ function redraw(){
   S.layers.forEach(l=>drawLayer(l,l.id===S.selId));
 }
 
+// Получаем правильный opentype-шрифт с учётом bold/italic
+// (ищем подходящее начертание в семействе)
+function getOtFont(l){
+  if(!l.fontFamily||!FONT_DATA[l.fontFamily]) return l.otFont||null;
+  const styles=FONT_DATA[l.fontFamily];
+  const wantBold=l.bold, wantItalic=l.italic;
+  // Ищем совпадение
+  for(const priority of [
+    s=>wantBold&&wantItalic&&/bold/i.test(s.style)&&/italic/i.test(s.style),
+    s=>wantBold&&!wantItalic&&/bold/i.test(s.style)&&!/italic/i.test(s.style),
+    s=>!wantBold&&wantItalic&&/italic/i.test(s.style)&&!/bold/i.test(s.style),
+    s=>!wantBold&&!wantItalic&&/regular/i.test(s.style),
+    s=>!wantBold&&!wantItalic&&!/bold/i.test(s.style)&&!/italic/i.test(s.style),
+    s=>true // fallback: первый попавшийся
+  ]){
+    const match=styles.find(priority);
+    if(match){
+      // Если этот шрифт уже в кэше — вернуть
+      if(FONT_CACHE[match.file]) return FONT_CACHE[match.file];
+      // Если текущий fontFile совпадает — вернуть otFont
+      if(match.file===l.fontFile) return l.otFont||null;
+      // Иначе начинаем загрузку асинхронно (не блокируем рендер)
+      if(!FONT_CACHE[match.file+'__loading']){
+        FONT_CACHE[match.file+'__loading']=true;
+        ensureB64(match.file).then(b64=>{
+          if(b64){ FONT_CACHE[match.file]=opentype.parse(b64ToArrayBuffer(b64)); redrawMain(); }
+        }).catch(()=>{});
+      }
+      break;
+    }
+  }
+  return l.otFont||null;
+}
+
+// Строим CSS-строку шрифта для системного рендера
+function cssFontStr(l,sz){
+  let style='';
+  if(l.bold&&l.italic) style='bold italic ';
+  else if(l.bold) style='bold ';
+  else if(l.italic) style='italic ';
+  return style+sz+'px "'+( l.fontFamily||'serif')+'", serif';
+}
+
 function drawLayer(l,sel){
-  // Рисуем текст с opacity
   ctx.save();
   ctx.translate(l.x,l.y);
   ctx.rotate(l.rot||0);
   ctx.globalAlpha=(l.opacity||100)/100;
-  const font=l.otFont||null;
+  const font=getOtFont(l);
   const sz=l.size||48;
   const lh=sz*(l.lineH||1.2);
   const lines=(l.text||'').split('\n');
   const totalH=lh*lines.length;
+  // Ширины строк для bbox (выравнивание убрано — центрирование по x)
   const widths=lines.map(ln=>mW(ctx,font,ln,sz,l));
   const maxW=Math.max(...widths,1);
-  l._bw=maxW;l._bh=totalH;
+  l._bw=maxW; l._bh=totalH;
   setShadow(ctx,l.shadow||'soft');
   let cy=-totalH/2+sz*0.82;
-  lines.forEach((ln,i)=>{
-    const lw=widths[i];
-    let ox=0;
-    if(l.align==='center') ox=-lw/2;
-    else if(l.align==='right') ox=-lw;
+  lines.forEach((ln)=>{
+    const lw=mW(ctx,font,ln,sz,l);
+    // Всегда центрируем — ox ставим в -lw/2
+    const ox=-lw/2;
     if(font){
-      // font.draw() игнорирует ctx.fillStyle — используем getPath + fill
-      ctx.fillStyle=l.color||'#fff';
       const path=font.getPath(ln,ox,cy,sz);
       path.fill=l.color||'#fff';
       path.draw(ctx);
     } else {
-      let ff=sz+'px serif';
-      if(l.bold&&l.italic) ff='bold italic '+ff;
-      else if(l.bold) ff='bold '+ff;
-      else if(l.italic) ff='italic '+ff;
-      ctx.font=ff;ctx.fillStyle=l.color||'#fff';
-      ctx.textAlign=l.align||'center';ctx.textBaseline='alphabetic';
-      ctx.fillText(ln,0,cy);
+      ctx.font=cssFontStr(l,sz);
+      ctx.fillStyle=l.color||'#fff';
+      ctx.textAlign='left';
+      ctx.textBaseline='alphabetic';
+      ctx.fillText(ln,ox,cy);
     }
-    // Зачёркивание
     if(l.strike){
       ctx.shadowColor='transparent';ctx.shadowBlur=0;
-      const sw=font?lw:ctx.measureText(ln).width;
-      let sx=ox;
-      if(!font&&l.align==='center') sx=-sw/2;
-      else if(!font&&l.align==='right') sx=-sw;
       ctx.fillStyle=l.color||'#fff';
-      ctx.fillRect(sx, cy-sz*0.3, sw, sz*0.07);
+      ctx.fillRect(ox,cy-sz*0.3,lw,sz*0.07);
       setShadow(ctx,l.shadow||'soft');
     }
     cy+=lh;
   });
   ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
-  ctx.restore();  // restore after text (opacity back to 1)
-  // Ручки рисуем ОТДЕЛЬНО с alpha=1
+  ctx.restore();
   if(sel) drawHandles(l,maxW,totalH);
 }
 
@@ -1602,13 +1628,11 @@ function hdot(c,x,y,col,lbl){
 
 function mW(c,font,text,sz,l){
   if(!text) return 0;
-  if(font){try{const bb=font.getPath(text,0,0,sz).getBoundingBox();return Math.max(bb.x2-bb.x1,1);}catch{return sz*text.length*0.55;}}
-  let ff=sz+'px serif';
-  if(l&&l.bold&&l.italic) ff='bold italic '+ff;
-  else if(l&&l.bold) ff='bold '+ff;
-  else if(l&&l.italic) ff='italic '+ff;
-  c.font=ff;return c.measureText(text).width||1;
+  if(font){try{const bb=font.getPath(text,0,0,sz).getBoundingBox();return Math.max(bb.x2-bb.x1,1);}catch(e){return sz*text.length*0.55;}}
+  c.font=cssFontStr(l||{},sz);
+  return c.measureText(text).width||1;
 }
+
 
 // ═══════════════════════════════════════════════
 // INTERACTION (drag, scale, rotate, snap)
@@ -1824,7 +1848,8 @@ function fillProps(l){
     i.classList.toggle('sel', i.dataset.fam === (l.fontFamily||''));
   });
   renderStylePills(l.fontFamily||'', l.fontFile||'');
-  document.querySelectorAll('.align-btn').forEach(b=>b.classList.toggle('on',b.dataset.a===l.align));
+  // align removed
+
   document.getElementById('tbold').classList.toggle('on',!!l.bold);
   document.getElementById('tital').classList.toggle('on',!!l.italic);
   document.getElementById('tstrike').classList.toggle('on',!!l.strike);
@@ -2546,19 +2571,17 @@ function setBrushColor(col){
 // Создаём маску для ВЫБРАННОГО текстового слоя
 function addMaskToSelected(){
   const l=S.layers.find(x=>x.id===S.selId);
-  if(!l||l.type==='mask'){
-    toast('Сначала выберите текстовый слой','err'); return;
-  }
-  if(l.mask){
-    toast('У этого слоя уже есть маска — выберите его маску в списке','err'); return;
-  }
-  // Создаём маску: начинаем с полностью белого (всё видно)
+  if(!l){toast('Сначала выберите текстовый слой','err');return;}
+  if(l.mask){toast('У этого слоя уже есть маска','err');return;}
+  // Маска: прозрачный canvas (alpha=0 = текст скрыт, alpha=1 = виден)
+  // По умолчанию — весь текст виден: заполняем белым непрозрачным
   const mc=document.createElement('canvas');
   mc.width=cvs.width; mc.height=cvs.height;
   const mctx=mc.getContext('2d');
-  mctx.fillStyle='white'; mctx.fillRect(0,0,mc.width,mc.height);
+  // Начинаем с полностью видимого (белый = показать весь текст)
+  mctx.fillStyle='rgba(255,255,255,1)';
+  mctx.fillRect(0,0,mc.width,mc.height);
   l.mask={maskCanvas:mc};
-  // Выбираем маску для рисования
   S.selId='mask:'+l.id;
   maskTargetId=l.id;
   renderLL(); redrawMain();
@@ -2671,15 +2694,24 @@ function drawTextLayerWithMask(l, sel){
   }
 }
 
-// Контур активной маски (полупрозрачный)
+// Подсветка активной маски:
+// Рисуем инвертированную маску — где alpha=0 (стёрто) → тёмная вуаль
+// Это показывает где текст будет скрыт
 function drawMaskHint(mc){
   ctx.save();
-  ctx.globalAlpha=0.25;
-  ctx.globalCompositeOperation='multiply';
-  ctx.drawImage(mc,0,0,cvs.width,cvs.height);
-  ctx.globalCompositeOperation='source-over';
+  // Рисуем инвертированную маску через offscreen
+  const inv=document.createElement('canvas');
+  inv.width=mc.width; inv.height=mc.height;
+  const ictx=inv.getContext('2d');
+  // Заливаем тёмно-красным
+  ictx.fillStyle='rgba(200,50,50,0.55)';
+  ictx.fillRect(0,0,inv.width,inv.height);
+  // Вырезаем видимые зоны (где маска белая / alpha=1)
+  ictx.globalCompositeOperation='destination-out';
+  ictx.drawImage(mc,0,0);
+  ctx.drawImage(inv,0,0,cvs.width,cvs.height);
   ctx.globalAlpha=1;
-  ctx.strokeStyle='rgba(191,90,242,.7)';ctx.lineWidth=1.5;
+  ctx.strokeStyle='rgba(191,90,242,.8)';ctx.lineWidth=1.5;
   ctx.setLineDash([4,3]);ctx.strokeRect(2,2,cvs.width-4,cvs.height-4);
   ctx.setLineDash([]);
   ctx.restore();
@@ -2690,7 +2722,8 @@ function drawLayerCtx(tctx, l, sel){
   tctx.save();
   tctx.translate(l.x,l.y); tctx.rotate(l.rot||0);
   tctx.globalAlpha=(l.opacity||100)/100;
-  const font=l.otFont||null, sz=l.size||48;
+  const font=getOtFont(l);
+  const sz=l.size||48;
   const lh=sz*(l.lineH||1.2);
   const lines=(l.text||'').split('\n');
   const totalH=lh*lines.length;
@@ -2699,11 +2732,11 @@ function drawLayerCtx(tctx, l, sel){
   l._bw=maxW; l._bh=totalH;
   setShadow(tctx,l.shadow||'soft');
   let cy=-totalH/2+sz*.82;
-  lines.forEach((ln,i)=>{
-    const lw=widths[i]; let ox=0;
-    if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+  lines.forEach((ln)=>{
+    const lw=mW(tctx,font,ln,sz,l);
+    const ox=-lw/2; // центрирование
     if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(tctx);}
-    else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;tctx.font=ff;tctx.fillStyle=l.color||'#fff';tctx.textAlign=l.align||'center';tctx.textBaseline='alphabetic';tctx.fillText(ln,0,cy);}
+    else{tctx.font=cssFontStr(l,sz);tctx.fillStyle=l.color||'#fff';tctx.textAlign='left';tctx.textBaseline='alphabetic';tctx.fillText(ln,ox,cy);}
     if(l.strike){tctx.shadowColor='transparent';tctx.shadowBlur=0;tctx.fillStyle=l.color||'#fff';tctx.fillRect(ox,cy-sz*.3,lw,sz*.07);setShadow(tctx,l.shadow||'soft');}
     cy+=lh;
   });
@@ -2729,13 +2762,21 @@ function maskPaint(e){
   const{x,y}=cxy(e);
   const mc=ml.mask.maskCanvas;
   const mctx=mc.getContext('2d');
-  const scx=mc.width/cvs.width, scy=mc.height/cvs.height;
-  mctx.globalCompositeOperation='source-over';
-  // Белый восстанавливает, чёрный скрывает
-  mctx.fillStyle=brushColor;
+  const scx=mc.width/cvs.width;
+  const r=(brushSize*scx)/2;
+  if(brushColor==='black'){
+    // Чёрная кисть = стираем (destination-out убирает альфа → текст исчезает)
+    mctx.globalCompositeOperation='destination-out';
+    mctx.fillStyle='rgba(0,0,0,1)';
+  } else {
+    // Белая кисть = восстанавливаем (source-over добавляет альфа → текст появляется)
+    mctx.globalCompositeOperation='source-over';
+    mctx.fillStyle='rgba(255,255,255,1)';
+  }
   mctx.beginPath();
-  mctx.arc(x*scx, y*scy, (brushSize*scx)/2, 0, Math.PI*2);
+  mctx.arc(x*scx, y*scx, r, 0, Math.PI*2);
   mctx.fill();
+  mctx.globalCompositeOperation='source-over'; // сбросить
   redrawMain();
 }
 
@@ -2846,67 +2887,65 @@ window.selLayer=function(id){
 const _rawRedraw=redraw;
 window.redraw=function(){ redrawMain(); };
 
+// Предпросмотр обложки с применённой маской
+async function showMaskPreview(){
+  const src=S.croppedImg||S.rawImg;
+  if(!src&&!S.layers.length){ toast('Нет изображения','err'); return; }
+  toast('Генерирую предпросмотр…');
+  const blob=await renderFinalWithMasks(src);
+  if(!blob){ toast('Ошибка','err'); return; }
+  const url=URL.createObjectURL(blob);
+  const w=window.open('','_blank','width=600,height=900');
+  w.document.write('<body style="margin:0;background:#000"><img src="'+url+'" style="max-width:100%;max-height:100vh;display:block;margin:auto"></body>');
+  toast('Предпросмотр открыт','ok');
+}
+
 // ═══════════════════════════════════════════════
 // ОБНОВЛЯЕМ renderFinal — применяем маски при сохранении
 // ═══════════════════════════════════════════════
 async function renderFinalWithMasks(srcBitmap){
   if(!srcBitmap&&S.layers.length===0) return null;
-  const src=srcBitmap;
-  const ow=src?src.width:cvs.width;
-  const oh=src?src.height:cvs.height;
+  const ow=srcBitmap?srcBitmap.width:cvs.width;
+  const oh=srcBitmap?srcBitmap.height:cvs.height;
   const sc=ow/cvs.width;
   const fc=document.createElement('canvas'); fc.width=ow; fc.height=oh;
   const fc2=fc.getContext('2d');
-  if(src) fc2.drawImage(src,0,0,ow,oh);
+  if(srcBitmap) fc2.drawImage(srcBitmap,0,0,ow,oh);
   else{ fc2.fillStyle='#0a0a12'; fc2.fillRect(0,0,ow,oh); }
 
+  // Рисуем каждый слой, применяя маску если есть
   for(const l of S.layers){
+    const off=document.createElement('canvas'); off.width=ow; off.height=oh;
+    const octx=off.getContext('2d');
+
+    // Рисуем текст в offscreen с масштабом
+    octx.save();
+    octx.translate(l.x*sc, l.y*sc); octx.rotate(l.rot||0);
+    octx.globalAlpha=(l.opacity||100)/100;
+    const font=getOtFont(l);
+    const sz=l.size*sc;
+    const lhpx=sz*(l.lineH||1.2);
+    const lines=(l.text||'').split('\n');
+    const totalH=lhpx*lines.length;
+    setShadow(octx,l.shadow||'soft');
+    let cy=-totalH/2+sz*.82;
+    lines.forEach(ln=>{
+      const lw=mW(octx,font,ln,sz,l);
+      const ox=-lw/2;
+      if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(octx);}
+      else{octx.font=cssFontStr(l,sz);octx.fillStyle=l.color||'#fff';octx.textAlign='left';octx.textBaseline='alphabetic';octx.fillText(ln,ox,cy);}
+      if(l.strike){octx.shadowColor='transparent';octx.shadowBlur=0;octx.fillStyle=l.color||'#fff';octx.fillRect(ox,cy-sz*.3,lw,sz*.07);setShadow(octx,l.shadow||'soft');}
+      cy+=lhpx;
+    });
+    octx.restore();
+
+    // Применяем маску если есть
     if(l.mask&&l.mask.maskCanvas){
-      // Рисуем текст в offscreen, применяем маску
-      const off2=document.createElement('canvas'); off2.width=ow; off2.height=oh;
-      const o2=off2.getContext('2d');
-      // Рисуем текст с масштабом
-      o2.save();
-      o2.translate(l.x*sc,l.y*sc); o2.rotate(l.rot||0); o2.globalAlpha=(l.opacity||100)/100;
-      const font=l.otFont||null, sz=l.size*sc;
-      const lhpx=sz*(l.lineH||1.2);
-      const lines=(l.text||'').split('\n');
-      const totalH=lhpx*lines.length;
-      const widths=lines.map(ln=>mW(o2,font,ln,sz,l));
-      setShadow(o2,l.shadow||'soft');
-      let cy=-totalH/2+sz*.82;
-      lines.forEach((ln,i)=>{
-        const lw=widths[i]; let ox=0;
-        if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
-        if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(o2);}
-        else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;o2.font=ff;o2.fillStyle=l.color||'#fff';o2.textAlign=l.align||'center';o2.textBaseline='alphabetic';o2.fillText(ln,0,cy);}
-        cy+=lhpx;
-      });
-      o2.restore();
-      // Применяем маску
-      o2.globalCompositeOperation='destination-in';
-      o2.drawImage(l.mask.maskCanvas,0,0,ow,oh);
-      fc2.drawImage(off2,0,0);
-    } else {
-      // Обычный слой без маски
-      fc2.save();
-      fc2.translate(l.x*sc,l.y*sc); fc2.rotate(l.rot||0); fc2.globalAlpha=(l.opacity||100)/100;
-      const font=l.otFont||null, sz=l.size*sc;
-      const lhpx=sz*(l.lineH||1.2);
-      const lines=(l.text||'').split('\n');
-      const totalH=lhpx*lines.length;
-      const widths=lines.map(ln=>mW(fc2,font,ln,sz,l));
-      setShadow(fc2,l.shadow||'soft');
-      let cy=-totalH/2+sz*.82;
-      lines.forEach((ln,i)=>{
-        const lw=widths[i]; let ox=0;
-        if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
-        if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(fc2);}
-        else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;fc2.font=ff;fc2.fillStyle=l.color||'#fff';fc2.textAlign=l.align||'center';fc2.textBaseline='alphabetic';fc2.fillText(ln,0,cy);}
-        cy+=lhpx;
-      });
-      fc2.restore();
+      octx.globalCompositeOperation='destination-in';
+      octx.drawImage(l.mask.maskCanvas,0,0,ow,oh);
+      octx.globalCompositeOperation='source-over';
     }
+    fc2.drawImage(off,0,0);
   }
   return new Promise(res=>fc.toBlob(res,'image/jpeg',.95));
 }
