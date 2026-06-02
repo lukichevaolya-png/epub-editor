@@ -13,156 +13,173 @@
 <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ══════════════════════════════════════════════
-   iOS 26 LIQUID GLASS — DARK
+   EPUB EDITOR — Dark Liquid Glass (referense-accurate)
 ══════════════════════════════════════════════ */
 :root{
-  --sys-bg:       #000;
-  --sys-bg2:      #0a0a0f;
-  --glass-bg:     rgba(28,28,36,0.72);
-  --glass-bg2:    rgba(40,40,52,0.65);
-  --glass-border: rgba(255,255,255,0.10);
-  --glass-shine:  rgba(255,255,255,0.06);
-  --glass-blur:   20px;
-  --tint:         #0a84ff;
-  --tint2:        #30d158;
-  --tint3:        #bf5af2;
-  --tint-red:     #ff453a;
-  --tint-amber:   #ffd60a;
-  --text:         #f5f5f7;
-  --text2:        rgba(245,245,247,0.6);
-  --text3:        rgba(245,245,247,0.35);
-  --sep:          rgba(255,255,255,0.08);
-  --r-lg:         18px;
-  --r-md:         12px;
-  --r-sm:         8px;
+  --bg:           #0b0c14;
+  --bg2:          #0f1020;
+  --card:         rgba(22,24,38,0.82);
+  --card2:        rgba(30,33,52,0.70);
+  --panel:        rgba(18,20,32,0.90);
+  --border:       rgba(255,255,255,0.08);
+  --border-light: rgba(255,255,255,0.14);
+  --shine:        rgba(255,255,255,0.05);
+  --blur:         22px;
+  --blue:         #3b82f6;
+  --blue-glow:    rgba(59,130,246,0.35);
+  --green:        #22c55e;
+  --purple:       #a855f7;
+  --red:          #ef4444;
+  --amber:        #f59e0b;
+  --text:         #e8eaf0;
+  --text2:        rgba(232,234,240,0.55);
+  --text3:        rgba(232,234,240,0.30);
+  --sep:          rgba(255,255,255,0.07);
+  --r-xl:         20px;
+  --r-lg:         16px;
+  --r-md:         10px;
+  --r-sm:         7px;
 }
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px;-webkit-font-smoothing:antialiased}
+html{font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 body{
-  background:var(--sys-bg2);
+  background:var(--bg);
   background-image:
-    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(10,132,255,.12) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(191,90,242,.10) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 55% at 15% 5%,  rgba(59,130,246,.10) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 45% at 85% 90%,  rgba(168,85,247,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,  rgba(59,130,246,.03) 0%, transparent 70%);
   color:var(--text);
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   line-height:1.5;
   min-height:100vh;
 }
 
-/* ── Liquid Glass mixin ── */
-.glass{
-  background:var(--glass-bg);
-  backdrop-filter:blur(var(--glass-blur)) saturate(180%);
-  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(180%);
-  border:1px solid var(--glass-border);
-  border-top-color:rgba(255,255,255,0.15);
-}
-.glass2{
-  background:var(--glass-bg2);
-  backdrop-filter:blur(12px) saturate(160%);
-  -webkit-backdrop-filter:blur(12px) saturate(160%);
-  border:1px solid var(--glass-border);
-}
-
-/* ── Header ── */
+/* ── HEADER ── */
 header{
-  position:sticky;top:0;z-index:200;
+  position:sticky;top:0;z-index:300;
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 24px;
-  background:rgba(0,0,0,.6);
-  backdrop-filter:blur(40px) saturate(200%);
-  -webkit-backdrop-filter:blur(40px) saturate(200%);
-  border-bottom:1px solid var(--sep);
+  padding:0 24px;
+  height:52px;
+  background:rgba(11,12,20,.75);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-bottom:1px solid var(--border);
 }
 .hlogo{
   display:flex;align-items:center;gap:10px;
-  font-size:17px;font-weight:600;letter-spacing:-.3px;
+  font-size:16px;font-weight:700;letter-spacing:-.4px;
   color:var(--text);
 }
 .hlogo-icon{
-  width:30px;height:30px;border-radius:8px;
-  background:linear-gradient(135deg,#1a1a2e,#16213e);
-  border:1px solid rgba(255,255,255,.15);
+  width:28px;height:28px;border-radius:8px;
+  background:linear-gradient(135deg,#1e3a5f 0%,#1a2a4a 100%);
+  border:1px solid rgba(59,130,246,.35);
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;
+  flex-shrink:0;
 }
+.hlogo-icon svg{width:16px;height:16px}
 .hbadge{
-  font-size:10px;font-weight:500;letter-spacing:.5px;
-  color:var(--text3);background:rgba(255,255,255,.06);
-  border:1px solid var(--sep);padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:600;letter-spacing:.8px;
+  color:rgba(255,255,255,.45);
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  padding:3px 9px;border-radius:20px;
 }
 
-/* ── Navigation Pills (iOS style) ── */
-.nav-wrap{padding:12px 24px 0;display:flex;justify-content:center;}
+/* ── NAV TABS (referense style) ── */
+.nav-wrap{padding:14px 24px 0;display:flex;justify-content:center;}
 .nav-pills{
-  display:inline-flex;gap:2px;
-  background:rgba(255,255,255,.05);
-  border:1px solid var(--sep);
+  display:inline-flex;gap:1px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border);
   border-radius:100px;
   padding:3px;
 }
 .nav-pills button{
   background:none;border:none;
   color:var(--text2);font-family:inherit;font-size:13px;font-weight:500;
-  padding:7px 20px;border-radius:100px;cursor:pointer;
-  transition:all .22s cubic-bezier(.4,0,.2,1);
+  padding:7px 24px;border-radius:100px;cursor:pointer;
+  transition:all .2s ease;
   letter-spacing:-.1px;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
 }
-.nav-pills button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.nav-pills button:hover{color:var(--text)}
 .nav-pills button.active{
-  background:rgba(255,255,255,.12);
-  color:var(--text);
-  box-shadow:0 1px 6px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1);
+  background:var(--blue);
+  color:#fff;
+  box-shadow:0 2px 12px var(--blue-glow);
 }
 
-main{padding:16px 20px 40px;max-width:1120px;margin:0 auto;}
+main{padding:16px 20px 48px;max-width:1160px;margin:0 auto;}
 .tab{display:none}.tab.active{display:block}
 
-/* ── Cards ── */
+/* ── CARDS ── */
 .card{
-  border-radius:var(--r-lg);
-  padding:20px;
-  margin-bottom:14px;
+  border-radius:var(--r-xl);
+  padding:0;
+  margin-bottom:12px;
+  background:var(--card);
+  backdrop-filter:blur(var(--blur)) saturate(160%);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(160%);
+  border:1px solid var(--border-light);
+  border-top-color:rgba(255,255,255,.18);
+  overflow:hidden;
 }
 .card-title{
-  font-size:15px;font-weight:600;letter-spacing:-.2px;
-  color:var(--text);margin-bottom:16px;
-  padding-bottom:12px;border-bottom:1px solid var(--sep);
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:10px;
+  padding:14px 20px;
+  border-bottom:1px solid var(--sep);
 }
 .card-title-icon{
-  width:26px;height:26px;border-radius:7px;
+  width:28px;height:28px;border-radius:8px;
   display:flex;align-items:center;justify-content:center;
-  font-size:13px;flex-shrink:0;
+  flex-shrink:0;
 }
+.card-title-icon svg{width:15px;height:15px}
+.card-title-text{
+  font-size:16px;font-weight:700;letter-spacing:-.3px;
+  color:var(--text);flex:1;
+}
+.card-body{padding:16px 20px 20px;}
 
-/* ── Drop Zone ── */
+/* ── DROP ZONE ── */
 .dz{
-  border:2px dashed rgba(255,255,255,.12);
-  border-radius:var(--r-md);
-  padding:36px 20px;
+  border:1.5px dashed rgba(255,255,255,.13);
+  border-radius:var(--r-lg);
+  padding:32px 20px;
   text-align:center;cursor:pointer;
   transition:all .22s;
   color:var(--text3);
+  background:rgba(255,255,255,.02);
 }
 .dz:hover,.dz.dg{
-  border-color:rgba(10,132,255,.5);
+  border-color:rgba(59,130,246,.5);
   color:var(--text2);
-  background:rgba(10,132,255,.05);
+  background:rgba(59,130,246,.05);
 }
-.dz-ico{font-size:32px;margin-bottom:8px;opacity:.7}
-.dz p{font-size:13px}
-.dz strong{color:var(--tint)}
+.dz-ico{
+  width:40px;height:40px;margin:0 auto 10px;
+  background:rgba(59,130,246,.12);
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+}
+.dz-ico svg{width:22px;height:22px;stroke:var(--blue);stroke-width:1.8;fill:none}
+.dz p{font-size:13px;color:var(--text2)}
+.dz strong{color:var(--blue)}
 .dz input{display:none}
 
-/* ── Forms ── */
+/* ── FORMS ── */
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .row1{grid-template-columns:1fr}
 .fg{display:flex;flex-direction:column;gap:5px}
-.flabel{font-size:11px;font-weight:500;letter-spacing:.3px;color:var(--text3);text-transform:uppercase}
+.flabel{
+  font-size:10px;font-weight:600;letter-spacing:.6px;
+  color:var(--text3);text-transform:uppercase;
+}
 input[type=text],input[type=number],select,textarea{
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--glass-border);
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);
   border-radius:var(--r-sm);
   color:var(--text);
   font-family:inherit;font-size:13px;
@@ -170,262 +187,230 @@ input[type=text],input[type=number],select,textarea{
   transition:border-color .18s,background .18s;
   width:100%;
 }
-input:focus,select:focus{
-  border-color:rgba(10,132,255,.5);
-  background:rgba(10,132,255,.06);
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(59,130,246,.55);
+  background:rgba(59,130,246,.05);
 }
 input[type=color]{
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--glass-border);
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);
   border-radius:var(--r-sm);
   height:36px;width:100%;padding:3px;cursor:pointer;
 }
-select option{background:#1c1c24}
+select option{background:#141625}
+textarea{
+  resize:vertical;min-height:60px;
+  line-height:1.5;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent;
+}
+textarea::-webkit-scrollbar{width:4px}
+textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
 
-/* ── Buttons ── */
+/* ── BUTTONS (referense pill style) ── */
 .btn{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:9px 16px;border-radius:100px;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 18px;border-radius:100px;
   border:none;font-family:inherit;font-size:13px;font-weight:500;
   cursor:pointer;letter-spacing:-.1px;
-  transition:all .18s cubic-bezier(.4,0,.2,1);
+  transition:all .18s ease;
   -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
 }
 .btn-blue{
-  background:var(--tint);color:#fff;
-  box-shadow:0 2px 12px rgba(10,132,255,.3);
+  background:var(--blue);color:#fff;
+  box-shadow:0 2px 14px var(--blue-glow);
 }
-.btn-blue:hover{background:#0071e3;box-shadow:0 2px 16px rgba(10,132,255,.4)}
-.btn-green{
-  background:var(--tint2);color:#000;
-  box-shadow:0 2px 10px rgba(48,209,88,.25);
-}
-.btn-green:hover{background:#28cd50}
+.btn-blue:hover{background:#2563eb;box-shadow:0 4px 20px var(--blue-glow)}
+.btn-green{background:#16a34a;color:#fff}
+.btn-green:hover{background:#15803d}
 .btn-glass{
-  background:rgba(255,255,255,.1);color:var(--text);
-  border:1px solid var(--glass-border);
-  backdrop-filter:blur(10px);
+  background:rgba(255,255,255,.08);color:var(--text);
+  border:1px solid var(--border);
 }
-.btn-glass:hover{background:rgba(255,255,255,.16)}
+.btn-glass:hover{background:rgba(255,255,255,.13)}
 .btn-red{
-  background:rgba(255,69,58,.15);color:var(--tint-red);
-  border:1px solid rgba(255,69,58,.2);
+  background:rgba(239,68,68,.13);color:var(--red);
+  border:1px solid rgba(239,68,68,.22);
 }
-.btn-red:hover{background:rgba(255,69,58,.25)}
-.btn-purple{
-  background:var(--tint3);color:#fff;
-  box-shadow:0 2px 10px rgba(191,90,242,.25);
-}
-.btn-purple:hover{background:#a44eda}
-.btn-sm{padding:5px 12px;font-size:11px}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.bgrp{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-red:hover{background:rgba(239,68,68,.22)}
+.btn-purple{background:var(--purple);color:#fff}
+.btn-purple:hover{background:#9333ea}
+.btn-sm{padding:5px 13px;font-size:11px}
+.btn:disabled{opacity:.32;cursor:not-allowed}
+.bgrp{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 
-/* ── Badges ── */
+/* ── BADGES ── */
 .badge{
   display:inline-flex;align-items:center;gap:5px;
-  background:rgba(255,255,255,.06);border:1px solid var(--sep);
+  background:rgba(255,255,255,.05);border:1px solid var(--border);
   border-radius:20px;padding:3px 10px;
   font-size:11px;color:var(--text3);
   margin:0 5px 5px 0;
 }
 .badge span{color:var(--text2)}
 
-/* ══ COVER EDITOR ══ */
-.ced{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
-
-/* Stage */
+/* ── COVER EDITOR LAYOUT ── */
+.ced{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start}
 .stage-wrap{
-  border-radius:var(--r-lg);
-  padding:14px;
+  border-radius:var(--r-lg);padding:12px;
   display:flex;flex-direction:column;gap:10px;
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--sep);
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--border);
 }
 .stage-toolbar{
   display:flex;align-items:center;
-  justify-content:space-between;
-  gap:8px;flex-wrap:wrap;
+  justify-content:space-between;gap:8px;flex-wrap:wrap;
 }
 .stage-inner{
-  position:relative;
-  border-radius:var(--r-md);
-  overflow:hidden;
-  background:#050508;
-  display:flex;
-  justify-content:center;
-  min-height:120px;
+  position:relative;border-radius:var(--r-md);
+  overflow:hidden;background:#06070f;
+  display:flex;justify-content:center;min-height:120px;
 }
-/* Cropper mode */
 #stage-cropper-wrap{display:none;width:100%}
 #stage-cropper-wrap.active{display:block}
 #cropperImg{display:block;max-width:100%}
-/* Canvas mode */
 #stage-canvas-wrap{display:flex;justify-content:center;width:100%}
 #cvs{display:block;max-width:100%;height:auto;cursor:default;touch-action:none;}
-.stage-hint{
-  font-size:10px;color:var(--text3);
-  text-align:center;line-height:2;
-}
+.stage-hint{font-size:10px;color:var(--text3);text-align:center;line-height:2}
 
-/* ── Right panel ── */
-.rpanel{display:flex;flex-direction:column;gap:10px}
+/* ── RIGHT PANEL ── */
+.rpanel{display:flex;flex-direction:column;gap:8px}
 .rpanel-block{
-  border-radius:var(--r-md);
-  padding:14px;
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--sep);
+  border-radius:var(--r-md);padding:13px;
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--border);
 }
 .rpanel-title{
-  font-size:11px;font-weight:600;letter-spacing:.4px;
+  font-size:11px;font-weight:700;letter-spacing:.5px;
   color:var(--text3);text-transform:uppercase;
   margin-bottom:10px;
 }
 
-/* Layer list */
-.llist{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+/* ── LAYER LIST ── */
+.llist{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
 .litem{
   display:flex;align-items:center;gap:7px;
   padding:7px 10px;
-  background:rgba(255,255,255,.04);
+  background:rgba(255,255,255,.03);
   border:1px solid transparent;
   border-radius:var(--r-sm);
   cursor:pointer;transition:all .15s;user-select:none;
 }
-.litem:hover{border-color:var(--sep);background:rgba(255,255,255,.07)}
-.litem.sel{
-  border-color:rgba(10,132,255,.4);
-  background:rgba(10,132,255,.08);
-}
+.litem:hover{border-color:var(--sep);background:rgba(255,255,255,.06)}
+.litem.sel{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.08);}
 .litem-label{flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
 .litem-del{font-size:12px;cursor:pointer;color:var(--text3);padding:0 2px;transition:color .15s;flex-shrink:0}
-.litem-del:hover{color:var(--tint-red)}
+.litem-del:hover{color:var(--red)}
 .llist-empty{font-size:12px;color:var(--text3);text-align:center;padding:10px 0}
 
-/* ── Font Picker ── */
-.font-picker{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;position:relative;}
-/* Кастомный дропдаун */
+/* ── FONT PICKER ── */
+.font-picker{display:flex;flex-direction:column;gap:5px;margin-bottom:8px;position:relative;}
 .fdd-trigger{
-  width:100%;
-  padding:8px 12px;
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--glass-border);
+  width:100%;padding:8px 12px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);
   border-radius:var(--r-sm);
   color:var(--text);font-family:inherit;font-size:13px;
   cursor:pointer;text-align:left;
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   transition:border-color .18s,background .18s;
 }
-.fdd-trigger:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.18)}
-.fdd-trigger.open{border-color:rgba(10,132,255,.5);background:rgba(10,132,255,.06)}
+.fdd-trigger:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}
+.fdd-trigger.open{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.05)}
 .fdd-trigger-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fdd-arrow{font-size:10px;color:var(--text3);transition:transform .18s;flex-shrink:0}
 .fdd-trigger.open .fdd-arrow{transform:rotate(180deg)}
-/* Выпадающий список */
+
+/* ── DROPDOWN LIST (фикс мобильного скролла) ── */
 .fdd-list{
   position:absolute;top:calc(100% + 4px);left:0;right:0;
-  background:rgba(20,20,28,.98);
-  border:1px solid rgba(255,255,255,.14);
+  background:rgba(14,15,26,.99);
+  border:1px solid rgba(255,255,255,.12);
   border-radius:var(--r-md);
   z-index:600;
-  max-height:min(280px, 50vh);
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch; /* плавный скролл iOS */
+  max-height:min(290px,52vh);
+  overflow-y:scroll;               /* scroll не auto — не пропадает на iOS */
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;     /* ключевой фикс: не пропускает скролл выше */
   scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent;
-  box-shadow:0 8px 32px rgba(0,0,0,.7);
-  display:none;
+  box-shadow:0 12px 40px rgba(0,0,0,.8),0 2px 8px rgba(0,0,0,.5);
+  display:none;will-change:transform;
 }
 .fdd-list.open{display:block}
 .fdd-list::-webkit-scrollbar{width:4px}
-.fdd-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
-/* На мобильном — список ещё шире и выше чтобы было удобнее тапать */
+.fdd-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:2px}
+
+/* Мобильный — fixed overlay */
 @media(max-width:580px){
   .fdd-list{
-    max-height:min(320px,55vh);
     position:fixed;
-    /* Вычисляем позицию через JS, здесь сброс */
-    left:10px!important;right:10px!important;
-    top:auto!important;
-    z-index:800;
+    left:8px!important;right:8px!important;
+    max-height:min(360px,58vh);
+    z-index:900;
   }
-  .fdd-item{min-height:52px;padding:8px 12px;}
-  .fdd-preview{width:100px!important;height:32px!important;}
+  .fdd-item{min-height:50px;padding:8px 12px;}
 }
-/* Строка шрифта: canvas-превью слева, название справа */
+
 .fdd-item{
   display:flex;align-items:center;gap:10px;
-  padding:5px 12px;cursor:pointer;
+  padding:6px 12px;cursor:pointer;
   border-bottom:1px solid rgba(255,255,255,.04);
-  transition:background .12s;min-height:46px;
+  transition:background .1s;min-height:46px;
+  /* Важно для iOS: предотвращаем потерю скролла */
+  touch-action:pan-y;
 }
 .fdd-item:last-child{border-bottom:none}
-.fdd-item:hover{background:rgba(255,255,255,.07)}
-.fdd-item.sel{background:rgba(10,132,255,.15)}
-.fdd-preview{flex-shrink:0;width:120px;height:36px;display:block}
+.fdd-item:hover{background:rgba(255,255,255,.06)}
+.fdd-item.sel{background:rgba(59,130,246,.14)}
+.fdd-preview{flex-shrink:0;width:110px;height:34px;display:block;border-radius:4px;background:rgba(255,255,255,.03)}
 .fdd-meta{flex:1;min-width:0}
 .fdd-name{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fdd-styles{font-size:10px;color:var(--text3);opacity:.6;margin-top:1px}
-/* Поиск */
+.fdd-styles{font-size:10px;color:var(--text3);opacity:.5;margin-top:1px}
 .fdd-search{
-  padding:8px 12px;position:sticky;top:0;
-  background:rgba(20,20,28,.98);border-bottom:1px solid rgba(255,255,255,.08);z-index:1;
+  padding:8px 10px;position:sticky;top:0;
+  background:rgba(14,15,26,.99);border-bottom:1px solid rgba(255,255,255,.07);z-index:1;
 }
 .fdd-search input{
-  width:100%;background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.1);border-radius:6px;
+  width:100%;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.09);border-radius:6px;
   color:var(--text);font-family:inherit;font-size:12px;
   padding:6px 10px;outline:none;
 }
-.fdd-search input:focus{border-color:rgba(10,132,255,.4)}
+.fdd-search input:focus{border-color:rgba(59,130,246,.4)}
+
 /* Style pills */
 .font-style-scroll{
-  display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;
-  scrollbar-width:none;
+  display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
 }
 .font-style-scroll::-webkit-scrollbar{display:none}
 .fstyle-btn{
-  flex-shrink:0;padding:7px 14px;border-radius:100px;
-  border:1px solid var(--sep);background:rgba(255,255,255,.05);
-  color:var(--text2);font-family:inherit;font-size:12px;
+  flex-shrink:0;padding:6px 13px;border-radius:100px;
+  border:1px solid var(--border);background:rgba(255,255,255,.04);
+  color:var(--text2);font-family:inherit;font-size:11px;
   cursor:pointer;transition:all .15s;white-space:nowrap;
-  -webkit-tap-highlight-color:transparent;
-  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
 }
-.fstyle-btn:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
-.fstyle-btn.active{background:rgba(10,132,255,.18);border-color:rgba(10,132,255,.4);color:#fff;}
+.fstyle-btn:hover{border-color:rgba(255,255,255,.18);color:var(--text)}
+.fstyle-btn.active{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.4);color:#fff;}
 
-/* Text style toggles (B / I / S) */
+/* ── STYLE TOGGLES (referense B/I/S) ── */
 .style-toggles{display:flex;gap:4px}
 .stog{
-  width:34px;height:30px;
-  border-radius:var(--r-sm);
-  border:1px solid var(--sep);
-  background:rgba(255,255,255,.05);
-  color:var(--text2);font-family:inherit;font-size:13px;font-weight:600;
+  width:34px;height:30px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:rgba(255,255,255,.05);
+  color:var(--text2);font-family:inherit;font-size:13px;font-weight:700;
   cursor:pointer;transition:all .15s;
   display:flex;align-items:center;justify-content:center;
 }
 .stog:hover{background:rgba(255,255,255,.1)}
-.stog.on{background:rgba(10,132,255,.2);border-color:rgba(10,132,255,.4);color:#fff}
+.stog.on{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4);color:#fff}
 
-/* Props grid */
+/* Props */
 .pg2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px}
 .pg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px}
 .pg{display:flex;flex-direction:column;gap:4px}
-.pg-label{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.3px}
-
-/* Align buttons */
-.align-btns{display:flex;gap:3px}
-.align-btn{
-  flex:1;border-radius:var(--r-sm);border:1px solid var(--sep);
-  background:rgba(255,255,255,.05);color:var(--text3);
-  font-size:13px;padding:5px;cursor:pointer;transition:all .15s;
-}
-.align-btn:hover,.align-btn.on{
-  border-color:rgba(10,132,255,.4);color:var(--tint);
-  background:rgba(10,132,255,.1);
-}
+.pg-label{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.3px;text-transform:uppercase}
 
 /* Slider */
 input[type=range]{
@@ -438,138 +423,101 @@ input[type=range]::-webkit-slider-thumb{
   background:var(--text);cursor:pointer;
   box-shadow:0 1px 4px rgba(0,0,0,.5);
 }
-
-/* ── Merge list ── */
-#mlist{list-style:none;display:flex;flex-direction:column;gap:7px}
-#mlist li{
-  background:rgba(255,255,255,.04);border:1px solid var(--sep);
-  border-radius:var(--r-md);padding:11px 14px;
-  display:flex;align-items:center;gap:10px;
-  cursor:grab;user-select:none;transition:border-color .15s;
-}
-#mlist li:hover{border-color:rgba(255,255,255,.15)}
-#mlist li.dg2{opacity:.4}
-#mlist li.dov{border-color:rgba(10,132,255,.4);background:rgba(10,132,255,.06)}
-.dh{color:var(--text3);font-size:14px}
-.mfi{flex:1}
-.mfn{font-size:13px;color:var(--text)}
-.mfm{font-size:11px;color:var(--text3);margin-top:1px}
-.fnum{
-  width:22px;height:22px;border-radius:50%;
-  background:rgba(10,132,255,.2);border:1px solid rgba(10,132,255,.3);
-  color:var(--tint);display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:600;flex-shrink:0;
-}
-
-/* ── Toast ── */
-#toast{
-  position:fixed;bottom:24px;right:24px;
-  padding:12px 18px;
-  border-radius:var(--r-md);
-  font-size:12px;max-width:320px;z-index:9999;
-  opacity:0;transform:translateY(10px) scale(.97);
-  transition:all .25s cubic-bezier(.4,0,.2,1);
-  pointer-events:none;
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  background:rgba(40,40,52,.85);
-  border:1px solid rgba(255,255,255,.12);
-  color:var(--text2);
-}
-#toast.show{opacity:1;transform:translateY(0) scale(1)}
-#toast.err{border-color:rgba(255,69,58,.4);color:var(--tint-red)}
-#toast.ok{border-color:rgba(48,209,88,.3);color:var(--tint2)}
-
-/* Loader */
-.ld{
-  display:none;width:14px;height:14px;
-  border:2px solid rgba(255,255,255,.2);
-  border-top-color:currentColor;border-radius:50%;
-  animation:spin .7s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* Progress */
-.pbar{height:2px;background:rgba(255,255,255,.06);border-radius:1px;overflow:hidden;margin-top:10px;display:none}
-.pbar.on{display:block}
-.pfill{height:100%;background:linear-gradient(90deg,var(--tint),var(--tint3));width:0%;transition:width .35s;border-radius:1px;}
-
-.hr{border:none;border-top:1px solid var(--sep);margin:10px 0}
-.hint{font-size:10px;color:var(--text3);margin-top:3px}
-
-/* ── Textarea ── */
-textarea{
-  resize:vertical;
-  min-height:60px;
-  font-family:inherit;
-  line-height:1.5;
-  scrollbar-width:thin;
-  scrollbar-color:rgba(255,255,255,.15) transparent;
-}
-textarea::-webkit-scrollbar{width:4px}
-textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
-
-/* ── Slider+Number combo ── */
 .slider-row{display:flex;align-items:center;gap:7px;}
 .slider-row input[type=range]{flex:1;margin:0;}
-.slider-row input[type=number]{width:58px;flex-shrink:0;padding:6px 7px;text-align:center;}
+.slider-row input[type=number]{width:54px;flex-shrink:0;padding:6px 7px;text-align:center;}
 
-/* ── Crop Modal ── */
-.mov{
-  position:fixed;inset:0;z-index:1000;
-  background:rgba(0,0,0,.7);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  display:none;align-items:center;justify-content:center;padding:20px;
-}
-.mov.open{display:flex}
-.mdl{
-  background:rgba(22,22,30,.92);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:var(--r-lg);
-  padding:20px;
-  width:min(680px,94vw);
-  max-height:calc(100vh - 40px);
-  display:flex;flex-direction:column;gap:14px;
-  backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
-}
-.mtitle{font-size:16px;font-weight:600;color:var(--text);flex-shrink:0}
-.crop-area{flex:1;min-height:0;overflow:hidden;border-radius:var(--r-sm);background:#050508}
-.crop-area img{display:block;max-width:100%}
-
-/* ── Undo / Redo toolbar ── */
-.history-bar{display:flex;gap:6px;align-items:center}
+/* ── HISTORY BUTTONS ── */
+.history-bar{display:flex;gap:5px;align-items:center}
 .hbtn{
-  width:32px;height:32px;border-radius:8px;border:1px solid var(--glass-border);
-  background:rgba(255,255,255,.06);color:var(--text2);font-size:15px;
+  width:30px;height:30px;border-radius:var(--r-sm);
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.05);color:var(--text2);font-size:14px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
+  transition:all .15s;-webkit-tap-highlight-color:transparent;
 }
-.hbtn:hover{background:rgba(255,255,255,.12);color:var(--text)}
-.hbtn:disabled{opacity:.25;cursor:not-allowed}
+.hbtn:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.hbtn:disabled{opacity:.22;cursor:not-allowed}
 
-/* ── Mask layer ── */
+/* ── MASK TOOLBAR ── */
 .mask-toolbar{
   display:none;align-items:center;gap:8px;flex-wrap:wrap;
-  padding:8px 10px;background:rgba(255,255,255,.04);
-  border:1px solid var(--sep);border-radius:var(--r-sm);margin-bottom:8px;
+  padding:8px 10px;
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;
 }
 .mask-toolbar.visible{display:flex}
 .brush-size-row{display:flex;align-items:center;gap:6px;flex:1}
 .brush-preview{
-  width:24px;height:24px;border-radius:50%;border:1px solid var(--sep);
-  background:#fff;flex-shrink:0;transition:all .2s;
+  width:24px;height:24px;border-radius:50%;
+  border:1px solid var(--border);background:#fff;flex-shrink:0;transition:all .2s;
 }
 .color-toggle{display:flex;gap:3px}
 .ctog{
-  width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;
-  transition:border .15s;
+  width:26px;height:26px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:border .15s;
 }
-.ctog.on{border-color:var(--tint)}
+.ctog.on{border-color:var(--blue)}
 .ctog-w{background:#fff}
 .ctog-b{background:#111;border:2px solid rgba(255,255,255,.2)}
-.ctog-b.on{border-color:var(--tint)}
+.ctog-b.on{border-color:var(--blue)}
 
-/* ── Responsive ── */
+/* ── MERGE LIST ── */
+#mlist{list-style:none;display:flex;flex-direction:column;gap:6px}
+#mlist li{
+  background:rgba(255,255,255,.035);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:10px 14px;
+  display:flex;align-items:center;gap:10px;
+  cursor:grab;user-select:none;transition:border-color .15s;
+}
+#mlist li:hover{border-color:rgba(255,255,255,.14)}
+#mlist li.dg2{opacity:.4}
+#mlist li.dov{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06)}
+.dh{color:var(--text3);font-size:14px}
+.mfi{flex:1}.mfn{font-size:13px;color:var(--text)}.mfm{font-size:11px;color:var(--text3);margin-top:1px}
+.fnum{
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(59,130,246,.18);border:1px solid rgba(59,130,246,.28);
+  color:var(--blue);display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;flex-shrink:0;
+}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;
+  padding:12px 18px;border-radius:var(--r-md);
+  font-size:12px;max-width:320px;z-index:9999;
+  opacity:0;transform:translateY(10px) scale(.97);
+  transition:all .25s ease;pointer-events:none;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:rgba(20,22,38,.92);
+  border:1px solid rgba(255,255,255,.12);color:var(--text2);
+}
+#toast.show{opacity:1;transform:translateY(0) scale(1)}
+#toast.err{border-color:rgba(239,68,68,.4);color:var(--red)}
+#toast.ok{border-color:rgba(34,197,94,.35);color:var(--green)}
+
+/* Loader */
+.ld{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Progress */
+.pbar{height:2px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;margin-top:10px;display:none}
+.pbar.on{display:block}
+.pfill{height:100%;background:linear-gradient(90deg,var(--blue),var(--purple));width:0%;transition:width .35s;border-radius:1px;}
+
+.hr{border:none;border-top:1px solid var(--sep);margin:10px 0}
+.hint{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* Crop modal */
+.mov{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;}
+.mov.open{display:flex}
+.mdl{background:rgba(14,15,26,.95);border:1px solid rgba(255,255,255,.12);border-radius:var(--r-xl);padding:20px;width:min(680px,94vw);max-height:calc(100vh - 40px);display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);}
+.mtitle{font-size:16px;font-weight:700;color:var(--text);flex-shrink:0}
+.crop-area{flex:1;min-height:0;overflow:hidden;border-radius:var(--r-sm);background:#06070f}
+.crop-area img{display:block;max-width:100%}
+
+/* ── RESPONSIVE ── */
 @media(max-width:860px){
   .ced{grid-template-columns:1fr}
   .rpanel{flex-direction:row;flex-wrap:wrap}
@@ -577,22 +525,23 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
   .stage-toolbar{flex-direction:column;align-items:flex-start}
 }
 @media(max-width:580px){
-  main{padding:10px 10px 32px}
-  header{padding:10px 14px}
+  main{padding:10px 10px 36px}
+  header{padding:0 14px}
   .nav-wrap{padding:10px 14px 0}
-  .card{padding:12px}
+  .card-body{padding:12px 14px 16px}
+  .card-title{padding:12px 14px}
   .row2{grid-template-columns:1fr}
+  .pg2{grid-template-columns:1fr}
   .ced{gap:8px}
   .rpanel{flex-direction:column}
   .rpanel-block{min-width:unset;width:100%}
-  .fdd-list{max-height:220px}
-  .stage-toolbar{flex-direction:column;align-items:flex-start;gap:6px}
-  .slider-row input[type=number]{width:48px}
+  .slider-row input[type=number]{width:46px}
   .hbtn{width:28px;height:28px;font-size:13px}
+  .btn-sm{padding:5px 10px;font-size:11px}
 }
 @media(max-width:400px){
-  .nav-pills button{padding:6px 12px;font-size:12px}
-  header h1{font-size:15px}
+  .nav-pills button{padding:6px 14px;font-size:12px}
+  .hlogo{font-size:15px}
 }
 </style>
 </head>
@@ -600,7 +549,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
 
 <header>
   <div class="hlogo">
-    <div class="hlogo-icon">📖</div>
+    <div class="hlogo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></div>
     EPUB Editor
   </div>
   <span class="hbadge">WEB</span>
@@ -619,53 +568,57 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
 <div id="tab-ed" class="tab active">
 
   <!-- Загрузка -->
-  <div class="card glass">
+  <div class="card">
     <div class="card-title">
-      <div class="card-title-icon" style="background:rgba(10,132,255,.15)">📂</div>
-      Файл
+      <div class="card-title-icon" style="background:rgba(59,130,246,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <span class="card-title-text">Файл</span>
     </div>
-    <div class="dz" id="ddrop">
-      <input type="file" id="dinput" accept=".epub"/>
-      <div class="dz-ico">📂</div>
-      <p>Перетащите <strong>.epub</strong> сюда или нажмите для выбора</p>
+    <div class="card-body">
+      <div class="dz" id="ddrop">
+        <input type="file" id="dinput" accept=".epub"/>
+        <div class="dz-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor"/><polyline points="17 8 12 3 7 8" stroke="currentColor"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor"/></svg></div>
+        <p>Перетащите <strong>.epub</strong> сюда или нажмите для выбора</p>
+      </div>
+      <div id="emeta" style="display:none;margin-top:10px"><div id="ebadges"></div></div>
     </div>
-    <div id="emeta" style="display:none;margin-top:10px"><div id="ebadges"></div></div>
   </div>
 
   <!-- Метаданные -->
-  <div class="card glass" id="smeta" style="display:none">
+  <div class="card" id="smeta" style="display:none">
     <div class="card-title">
-      <div class="card-title-icon" style="background:rgba(48,209,88,.12)">✏️</div>
-      Метаданные
+      <div class="card-title-icon" style="background:rgba(34,197,94,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <span class="card-title-text">Метаданные</span>
     </div>
-    <div class="row2">
-      <div class="fg"><label class="flabel">Название книги</label><input type="text" id="mtitle" placeholder="Введите название"/></div>
-      <div class="fg"><label class="flabel">Автор</label><input type="text" id="mauthor" placeholder="Введите автора"/></div>
+    <div class="card-body">
+      <div class="row2">
+        <div class="fg"><label class="flabel">Название книги</label><input type="text" id="mtitle" placeholder="Введите название"/></div>
+        <div class="fg"><label class="flabel">Автор</label><input type="text" id="mauthor" placeholder="Введите автора"/></div>
+      </div>
     </div>
   </div>
 
   <!-- Редактор обложки -->
-  <div class="card glass" id="scover" style="display:none">
+  <div class="card" id="scover" style="display:none">
     <div class="card-title" style="justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="card-title-icon" style="background:rgba(191,90,242,.12)">🎨</div>
-        Редактор обложки
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="card-title-icon" style="background:rgba(168,85,247,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <span class="card-title-text">Редактор обложки</span>
       </div>
       <div class="history-bar">
-        <button class="hbtn" id="btn-undo" onclick="histUndo()" title="Отменить (Ctrl+Z)" disabled>↩</button>
-        <button class="hbtn" id="btn-redo" onclick="histRedo()" title="Повторить (Ctrl+Y)" disabled>↪</button>
+        <button class="hbtn" id="btn-undo" onclick="histUndo()" title="Ctrl+Z" disabled>&#8617;</button>
+        <button class="hbtn" id="btn-redo" onclick="histRedo()" title="Ctrl+Y" disabled>&#8618;</button>
       </div>
     </div>
-    <div class="ced">
+    <div class="card-body"><div class="ced">
 
       <!-- ── Canvas / Cropper ── -->
       <div class="stage-wrap">
         <div class="stage-toolbar">
           <div class="bgrp">
             <input type="file" id="cfile" accept="image/*" style="display:none"/>
-            <button class="btn btn-glass btn-sm" onclick="document.getElementById('cfile').click()">📁 Изображение</button>
-            <button class="btn btn-glass btn-sm" id="bcrop" style="display:none" onclick="enterCropMode()">✂️ Обрезать</button>
-            <button class="btn btn-green btn-sm" id="bapply" style="display:none" onclick="applyCrop()">✓ Применить</button>
+            <button class="btn btn-glass btn-sm" onclick="document.getElementById('cfile').click()">Изображение</button>
+            <button class="btn btn-glass btn-sm" id="bcrop" style="display:none" onclick="enterCropMode()">Обрезать</button>
+            <button class="btn btn-green btn-sm" id="bapply" style="display:none" onclick="applyCrop()">Применить</button>
             <button class="btn btn-red btn-sm" id="bcancel" style="display:none" onclick="exitCropMode()">✕</button>
           </div>
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
@@ -702,7 +655,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
           <div class="llist" id="llist"><div class="llist-empty">Нажмите «+ Добавить»</div></div>
           <div style="display:flex;gap:5px">
             <button class="btn btn-purple btn-sm" style="flex:1;justify-content:center" onclick="addLayer()">+ Текст</button>
-            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="addMaskToSelected()" title="Добавить маску к выбранному тексту">🎭 Маска</button>
+            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="addMaskToSelected()" title="Добавить маску к выбранному тексту">Маска</button>
           </div>
         </div>
 
@@ -728,7 +681,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
             <div style="margin-top:4px;opacity:.7">Маска не влияет на другие слои</div>
           </div>
           <div class="hr"></div>
-          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">🗑 Удалить маску</button>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">Удалить маску</button>
         </div>
 
         <div class="rpanel-block" id="ppanel" style="display:none">
@@ -819,7 +772,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
           </div>
 
           <div class="hr"></div>
-          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">🗑 Удалить слой</button>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">Удалить слой</button>
         </div>
 
       </div>
@@ -830,9 +783,9 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
   <div id="ssave" style="display:none">
     <div class="bgrp">
       <button class="btn btn-blue" onclick="saveEpub()" id="bsave">
-        <span>💾 Сохранить EPUB</span><div class="ld" id="sload"></div>
+        <span>Сохранить EPUB</span><div class="ld" id="sload"></div>
       </button>
-      <button class="btn btn-glass" onclick="showMaskPreview()" title="Предпросмотр с учётом маски">👁 Предпросмотр</button>
+      <button class="btn btn-glass" onclick="showMaskPreview()" title="Предпросмотр с учётом маски">Предпросмотр</button>
       <button class="btn btn-glass" onclick="resetEd()">Сбросить</button>
     </div>
     <div class="pbar" id="spbar"><div class="pfill" id="spfill"></div></div>
@@ -843,22 +796,27 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
 <div id="tab-mg" class="tab">
 
   <!-- Загрузка файлов -->
-  <div class="card glass">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(191,90,242,.12)">📚</div>Файлы для объединения</div>
-    <div class="dz" id="mdrop">
-      <input type="file" id="minput" accept=".epub" multiple/>
-      <div class="dz-ico">📚</div>
-      <p>Перетащите <strong>.epub</strong> сюда или нажмите для выбора</p>
-      <p style="margin-top:5px;font-size:11px;color:var(--text3)">Можно добавлять по одному или несколько сразу</p>
+  <div class="card">
+    <div class="card-title">
+      <div class="card-title-icon" style="background:rgba(168,85,247,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+      <span class="card-title-text">Файлы для объединения</span>
+    </div>
+    <div class="card-body">
+      <div class="dz" id="mdrop">
+        <input type="file" id="minput" accept=".epub" multiple/>
+        <div class="dz-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor"/><polyline points="17 8 12 3 7 8" stroke="currentColor"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor"/></svg></div>
+        <p>Перетащите <strong>.epub</strong> сюда или нажмите для выбора</p>
+        <p style="margin-top:5px;font-size:11px;color:var(--text3)">Можно добавлять по одному или несколько сразу</p>
+      </div>
     </div>
   </div>
 
   <!-- Список книг + порядок -->
-  <div class="card glass" id="smord" style="display:none">
+  <div class="card" id="smord" style="display:none">
     <div class="card-title" style="justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="card-title-icon" style="background:rgba(10,132,255,.12)">↕</div>
-        Порядок книг
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="card-title-icon" style="background:rgba(59,130,246,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <span class="card-title-text">Порядок книг</span>
       </div>
       <!-- Кнопка добавить ещё -->
       <label class="btn btn-glass btn-sm" style="cursor:pointer;margin:0">
@@ -871,8 +829,9 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
   </div>
 
   <!-- Параметры итоговой книги -->
-  <div class="card glass" id="smset" style="display:none">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(48,209,88,.12)">⚙️</div>Параметры итоговой книги</div>
+  <div class="card" id="smset" style="display:none">
+    <div class="card-title"><div class="card-title-icon" style="background:rgba(34,197,94,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></div><span class="card-title-text">Параметры итоговой книги</span></div>
+    <div class="card-body">
     <div class="row2">
       <div class="fg"><label class="flabel">Название</label><input type="text" id="mgtitle" placeholder="Объединённая книга" oninput="updateMgFilename()"/></div>
       <div class="fg"><label class="flabel">Автор(ы)</label><input type="text" id="mgauth" oninput="updateMgFilename()"/></div>
@@ -885,18 +844,19 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
     </div>
   </div>
 
-  <!-- Обложка итоговой книги (идентична первой вкладке) -->
-  <div class="card glass" id="smcover" style="display:none">
-    <div class="card-title"><div class="card-title-icon" style="background:rgba(191,90,242,.12)">🎨</div>Обложка итоговой книги <span style="font-size:11px;font-weight:400;color:var(--text3)">(необязательно)</span></div>
+  <!-- Обложка итоговой книги -->
+  <div class="card" id="smcover" style="display:none">
+    <div class="card-title"><div class="card-title-icon" style="background:rgba(168,85,247,.15)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><span class="card-title-text">Обложка итоговой книги</span><span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:8px">(необязательно)</span></div>
+    <div class="card-body">
     <div class="ced">
       <!-- Canvas / Cropper -->
       <div class="stage-wrap">
         <div class="stage-toolbar">
           <div class="bgrp">
             <input type="file" id="mg-cfile" accept="image/*" style="display:none"/>
-            <button class="btn btn-glass btn-sm" onclick="document.getElementById('mg-cfile').click()">📁 Изображение</button>
-            <button class="btn btn-glass btn-sm" id="mg-bcrop" style="display:none" onclick="mgEnterCrop()">✂️ Обрезать</button>
-            <button class="btn btn-green btn-sm" id="mg-bapply" style="display:none" onclick="mgApplyCrop()">✓ Применить</button>
+            <button class="btn btn-glass btn-sm" onclick="document.getElementById('mg-cfile').click()">Изображение</button>
+            <button class="btn btn-glass btn-sm" id="mg-bcrop" style="display:none" onclick="mgEnterCrop()">Обрезать</button>
+            <button class="btn btn-green btn-sm" id="mg-bapply" style="display:none" onclick="mgApplyCrop()">Применить</button>
             <button class="btn btn-red btn-sm" id="mg-bcancel" style="display:none" onclick="mgExitCrop()">✕</button>
           </div>
           <div style="display:flex;align-items:center;gap:7px">
@@ -930,7 +890,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
           <div class="llist" id="mg-llist"><div class="llist-empty">Нажмите «+ Добавить»</div></div>
           <div style="display:flex;gap:5px">
             <button class="btn btn-purple btn-sm" style="flex:1;justify-content:center" onclick="mgAddLayer()">+ Текст</button>
-            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="mgAddMask()" title="Добавить маску к выбранному тексту">🎭 Маска</button>
+            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="mgAddMask()" title="Добавить маску к выбранному тексту">Маска</button>
           </div>
         </div>
         <div class="rpanel-block" id="mg-ppanel" style="display:none">
@@ -992,12 +952,12 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
             </div>
           </div>
           <div class="hr"></div>
-          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="mgDelSel()">🗑 Удалить слой</button>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="mgDelSel()">Удалить слой</button>
         </div>
 
         <!-- Панель маски объединения -->
         <div class="rpanel-block" id="mg-mask-panel" style="display:none">
-          <div class="rpanel-title">🎭 Маска слоя</div>
+          <div class="rpanel-title">Маска слоя</div>
           <div class="mask-toolbar visible">
             <div class="brush-size-row">
               <span style="font-size:10px;color:var(--text3)">Кисть</span>
@@ -1014,7 +974,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
             <div>⚫ <b style="color:var(--text2)">Чёрный</b> — скрывает область</div>
           </div>
           <div class="hr"></div>
-          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="mgDelSel()">🗑 Удалить маску</button>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="mgDelSel()">Удалить маску</button>
         </div>
 
       </div>
@@ -1024,7 +984,7 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
   <!-- Кнопка объединить -->
   <div id="smbtn" style="display:none">
     <div class="bgrp">
-      <button class="btn btn-blue" onclick="execMerge()" id="bmerge"><span>🔗 Объединить</span><div class="ld" id="mload"></div></button>
+      <button class="btn btn-blue" onclick="execMerge()" id="bmerge"><span>Объединить</span><div class="ld" id="mload"></div></button>
       <button class="btn btn-glass" onclick="resetMg()">Сбросить</button>
     </div>
     <div class="pbar" id="mpbar"><div class="pfill" id="mpfill"></div></div>
@@ -1137,7 +1097,10 @@ const _previewObserver = new IntersectionObserver((entries)=>{
       _previewObserver.unobserve(cvEl);
     }
   });
-}, {rootMargin:'80px'});
+}, {
+  rootMargin: '120px', // начинаем загрузку заранее
+  threshold: 0
+});
 
 function buildFontDropdown(){
   const container = document.getElementById('fddItems');
@@ -1315,12 +1278,21 @@ function hideFontDropdown(){
 }
 // Закрывать при клике/тапе вне дропдауна
 function _closeFddIfOutside(e){
+  // Не закрываем если тап внутри списка (включая скролл)
+  const list = document.getElementById('fddList');
+  if(_fddOpen && list && list.contains(e.target)) return;
   if(_fddOpen && !document.getElementById('fontPickerWrap')?.contains(e.target)){
     hideFontDropdown();
   }
 }
 document.addEventListener('click', _closeFddIfOutside);
-document.addEventListener('touchstart', _closeFddIfOutside, {passive:true});
+// touchstart с passive:true — только для десктопа и случаев вне списка
+document.addEventListener('touchstart', e=>{
+  const list=document.getElementById('fddList');
+  // Если тапаем внутри открытого списка — НЕ закрываем
+  if(_fddOpen && list && list.contains(e.target)) return;
+  _closeFddIfOutside(e);
+}, {passive:true});
 
 async function onFamilyChange(fam, clickedItem){
   const l = S.layers.find(x=>x.id===S.selId);
@@ -2488,14 +2460,20 @@ function mgFilterFonts(q){
   });
 }
 function _closeMgFddIfOutside(e){
+  const mgList=document.getElementById('mg-fddList');
+  if(_mgFddOpen&&mgList&&mgList.contains(e.target)) return;
   if(_mgFddOpen&&!document.getElementById('mg-fontPickerWrap')?.contains(e.target)){
     _mgFddOpen=false;
-    document.getElementById('mg-fddList')?.classList.remove('open');
+    mgList?.classList.remove('open');
     document.getElementById('mg-fddTrigger')?.classList.remove('open');
   }
 }
 document.addEventListener('click', _closeMgFddIfOutside);
-document.addEventListener('touchstart', _closeMgFddIfOutside, {passive:true});
+document.addEventListener('touchstart', e=>{
+  const mgList=document.getElementById('mg-fddList');
+  if(_mgFddOpen&&mgList&&mgList.contains(e.target)) return;
+  _closeMgFddIfOutside(e);
+}, {passive:true});
 
 // Вспомогательная — рисует pills для любого контейнера
 function renderStylePillsFor(pillsId,ddId,fam,activeFile,isMg){
