@@ -189,6 +189,8 @@ select option{background:#1c1c24}
   border:none;font-family:inherit;font-size:13px;font-weight:500;
   cursor:pointer;letter-spacing:-.1px;
   transition:all .18s cubic-bezier(.4,0,.2,1);
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 .btn-blue{
   background:var(--tint);color:#fff;
@@ -323,18 +325,33 @@ select option{background:#1c1c24}
 /* Выпадающий список */
 .fdd-list{
   position:absolute;top:calc(100% + 4px);left:0;right:0;
-  background:rgba(20,20,28,.96);
+  background:rgba(20,20,28,.98);
   border:1px solid rgba(255,255,255,.14);
   border-radius:var(--r-md);
-  z-index:500;
-  max-height:280px;overflow-y:auto;
+  z-index:600;
+  max-height:min(280px, 50vh);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch; /* плавный скролл iOS */
   scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent;
-  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  box-shadow:0 8px 32px rgba(0,0,0,.7);
   display:none;
 }
 .fdd-list.open{display:block}
 .fdd-list::-webkit-scrollbar{width:4px}
 .fdd-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+/* На мобильном — список ещё шире и выше чтобы было удобнее тапать */
+@media(max-width:580px){
+  .fdd-list{
+    max-height:min(320px,55vh);
+    position:fixed;
+    /* Вычисляем позицию через JS, здесь сброс */
+    left:10px!important;right:10px!important;
+    top:auto!important;
+    z-index:800;
+  }
+  .fdd-item{min-height:52px;padding:8px 12px;}
+  .fdd-preview{width:100px!important;height:32px!important;}
+}
 /* Строка шрифта: canvas-превью слева, название справа */
 .fdd-item{
   display:flex;align-items:center;gap:10px;
@@ -368,10 +385,12 @@ select option{background:#1c1c24}
 }
 .font-style-scroll::-webkit-scrollbar{display:none}
 .fstyle-btn{
-  flex-shrink:0;padding:5px 12px;border-radius:100px;
+  flex-shrink:0;padding:7px 14px;border-radius:100px;
   border:1px solid var(--sep);background:rgba(255,255,255,.05);
-  color:var(--text2);font-family:inherit;font-size:11px;
+  color:var(--text2);font-family:inherit;font-size:12px;
   cursor:pointer;transition:all .15s;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
 }
 .fstyle-btn:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
 .fstyle-btn.active{background:rgba(10,132,255,.18);border-color:rgba(10,132,255,.4);color:#fff;}
@@ -477,6 +496,18 @@ input[type=range]::-webkit-slider-thumb{
 
 .hr{border:none;border-top:1px solid var(--sep);margin:10px 0}
 .hint{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ── Textarea ── */
+textarea{
+  resize:vertical;
+  min-height:60px;
+  font-family:inherit;
+  line-height:1.5;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.15) transparent;
+}
+textarea::-webkit-scrollbar{width:4px}
+textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
 
 /* ── Slider+Number combo ── */
 .slider-row{display:flex;align-items:center;gap:7px;}
@@ -706,7 +737,11 @@ input[type=range]::-webkit-slider-thumb{
           <!-- Текст -->
           <div class="fg" style="margin-bottom:10px">
             <div class="pg-label">Текст</div>
-            <input type="text" id="ptxt" placeholder="Введите текст…" oninput="upd('text',this.value)"/>
+            <textarea id="ptxt" placeholder="Введите текст… (Shift+Enter — перенос строки)" rows="3"
+              style="resize:vertical;min-height:60px;line-height:1.5"
+              oninput="upd('text',this.value)"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();}"
+            ></textarea>
           </div>
 
           <!-- Шрифт (кастомный дропдаун с превью) -->
@@ -902,7 +937,11 @@ input[type=range]::-webkit-slider-thumb{
           <div class="rpanel-title">Свойства</div>
           <div class="fg" style="margin-bottom:8px">
             <div class="pg-label">Текст</div>
-            <input type="text" id="mg-ptxt" placeholder="Введите текст…" oninput="mgUpd('text',this.value)"/>
+            <textarea id="mg-ptxt" placeholder="Введите текст… (Shift+Enter — перенос строки)" rows="3"
+              style="resize:vertical;min-height:60px;line-height:1.5"
+              oninput="mgUpd('text',this.value)"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();}"
+            ></textarea>
           </div>
           <!-- Шрифт -->
           <div class="font-picker" id="mg-fontPickerWrap" style="margin-bottom:8px">
@@ -1085,10 +1124,24 @@ function b64ToArrayBuffer(b64){
 }
 
 // Строим список элементов дропдауна (один раз)
+// Превью рендерятся лениво через IntersectionObserver
+const _previewObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(!entry.isIntersecting) return;
+    const cvEl = entry.target;
+    const filename = cvEl.dataset.previewFile;
+    const text = cvEl.dataset.previewText;
+    if(filename && text && !cvEl.dataset.rendered){
+      cvEl.dataset.rendered = '1';
+      drawFontPreview(cvEl, filename, text);
+      _previewObserver.unobserve(cvEl);
+    }
+  });
+}, {rootMargin:'80px'});
+
 function buildFontDropdown(){
   const container = document.getElementById('fddItems');
   container.innerHTML = '';
-  // Пункт "без шрифта"
   const noFont = makeFddItem('', '— Без шрифта —', [], null);
   container.appendChild(noFont);
   for(const fam of Object.keys(FONT_DATA).sort()){
@@ -1105,7 +1158,13 @@ function makeFddItem(fam, label, styles, previewFile){
   // Canvas превью
   const cvPreview = document.createElement('canvas');
   cvPreview.className = 'fdd-preview';
-  cvPreview.width = 240; cvPreview.height = 72;
+  // Учитываем devicePixelRatio для чёткости на Retina/мобильных экранах
+  const dpr = window.devicePixelRatio || 1;
+  cvPreview.width = Math.round(240 * dpr);
+  cvPreview.height = Math.round(72 * dpr);
+  // CSS-размер фиксируем через style (не атрибут)
+  cvPreview.style.width = '120px';
+  cvPreview.style.height = '36px';
   // Мета-текст (название + количество начертаний)
   const meta = document.createElement('div');
   meta.className = 'fdd-meta';
@@ -1116,9 +1175,21 @@ function makeFddItem(fam, label, styles, previewFile){
   stylesDiv.textContent = styles.length > 1 ? styles.length + ' начертаний' : '';
   meta.appendChild(nameDiv); meta.appendChild(stylesDiv);
   div.appendChild(cvPreview); div.appendChild(meta);
-  // Рисуем превью асинхронно
+  // Превью рисуем лениво через IntersectionObserver (экономим ресурсы на мобильном)
   if(fam && previewFile){
-    drawFontPreview(cvPreview, previewFile, fam);
+    cvPreview.dataset.previewFile = previewFile;
+    cvPreview.dataset.previewText = fam;
+    _previewObserver.observe(cvPreview);
+    // Рисуем заглушку сразу (пока не загрузится)
+    const pctx0 = cvPreview.getContext('2d');
+    const lw0 = cvPreview.width/(window.devicePixelRatio||1);
+    const lh0 = cvPreview.height/(window.devicePixelRatio||1);
+    pctx0.fillStyle='rgba(255,255,255,0.04)';
+    pctx0.fillRect(0,0,cvPreview.width,cvPreview.height);
+    pctx0.fillStyle='rgba(255,255,255,0.2)';
+    pctx0.font=`${Math.round(11*(window.devicePixelRatio||1))}px monospace`;
+    pctx0.textBaseline='middle';
+    pctx0.fillText(fam.substring(0,18),8*(window.devicePixelRatio||1),(lh0/2)*(window.devicePixelRatio||1));
   } else {
     // Пункт "без шрифта" — рисуем системным
     const pctx = cvPreview.getContext('2d');
@@ -1127,7 +1198,16 @@ function makeFddItem(fam, label, styles, previewFile){
     pctx.textBaseline = 'middle';
     pctx.fillText('serif', 8, 36);
   }
-  div.onclick = () => onFamilyChange(fam, div);
+  // На мобильном используем touchend чтобы избежать задержки 300мс iOS
+  div.addEventListener('touchend', e => {
+    e.preventDefault(); // отменяем последующий click
+    e.stopPropagation();
+    onFamilyChange(fam, div);
+  });
+  div.addEventListener('click', e => {
+    e.stopPropagation();
+    onFamilyChange(fam, div);
+  });
   return div;
 }
 
@@ -1154,35 +1234,44 @@ async function drawFontPreview(cvEl, filename, text){
     }catch(e){ return; }
   }
   // Рисуем название шрифта его же начертанием
+  const dpr2 = window.devicePixelRatio || 1;
   const pctx = cvEl.getContext('2d');
-  pctx.clearRect(0,0,cvEl.width,cvEl.height);
+  // Масштабируем контекст под dpr чтобы текст был чётким
+  pctx.setTransform(dpr2, 0, 0, dpr2, 0, 0);
+  // Логические размеры (без dpr)
+  const lw = cvEl.width / dpr2, lh = cvEl.height / dpr2;
+  pctx.clearRect(0,0,lw,lh);
   pctx.fillStyle = 'rgba(255,255,255,0.05)';
-  pctx.fillRect(0,0,cvEl.width,cvEl.height);
+  pctx.fillRect(0,0,lw,lh);
   pctx.fillStyle = '#ffffff';
-  // Подбираем размер чтобы текст влез
-  let sz = 28;
-  for(let tries=0; tries<5; tries++){
+  // Подбираем размер шрифта чтобы текст влез по ширине
+  let sz = 20;
+  for(let tries=0; tries<6; tries++){
     try{
       const bb = font.getPath(text,0,0,sz).getBoundingBox();
-      const w = bb.x2-bb.x1;
-      if(w > cvEl.width - 16) sz = Math.floor(sz * (cvEl.width-16) / w);
+      const tw = bb.x2-bb.x1;
+      if(tw > lw - 12) sz = Math.max(8, Math.floor(sz * (lw-12) / tw));
       else break;
     }catch(e){ break; }
   }
-  sz = Math.max(12, Math.min(sz, 36));
+  sz = Math.max(9, Math.min(sz, 24));
   try{
-    const prevPath = font.getPath(text, 8, sz + (cvEl.height - sz)/2 - 2, sz);
+    // Центрируем по высоте
+    const bb2 = font.getPath(text,0,0,sz).getBoundingBox();
+    const th2 = bb2.y2 - bb2.y1;
+    const y0 = (lh - th2)/2 - bb2.y1;
+    const prevPath = font.getPath(text, 8, y0, sz);
     prevPath.fill = '#ffffff';
     prevPath.draw(pctx);
-    // Кэшируем как dataURL
     PREVIEW_CACHE[filename] = cvEl.toDataURL();
   }catch(e){
-    // Запасной вариант если шрифт не поддерживает текст
-    pctx.fillStyle = 'rgba(255,255,255,0.5)';
-    pctx.font = '13px monospace';
+    pctx.fillStyle = 'rgba(255,255,255,0.55)';
+    pctx.font = `${Math.round(12*dpr2)}px monospace`;
     pctx.textBaseline = 'middle';
-    pctx.fillText(text, 8, cvEl.height/2);
+    pctx.fillText(text, 8, lh/2);
   }
+  // Сбрасываем трансформацию
+  pctx.setTransform(1,0,0,1,0,0);
 }
 
 // Фильтрация по поиску
@@ -1202,6 +1291,18 @@ function toggleFontDropdown(){
   list.classList.toggle('open', _fddOpen);
   trigger.classList.toggle('open', _fddOpen);
   if(_fddOpen){
+    // На мобильном — позиционируем под триггером через fixed
+    if(window.innerWidth <= 580){
+      const trigRect = trigger.getBoundingClientRect();
+      // Если места снизу мало — открываем вверх
+      const spaceBelow = window.innerHeight - trigRect.bottom;
+      const listH = Math.min(320, window.innerHeight * 0.55);
+      if(spaceBelow < listH && trigRect.top > listH){
+        list.style.top = (trigRect.top - listH - 4) + 'px';
+      } else {
+        list.style.top = (trigRect.bottom + 4) + 'px';
+      }
+    }
     document.getElementById('fddSearch').value = '';
     filterFonts('');
     setTimeout(()=>document.getElementById('fddSearch').focus(),50);
@@ -1212,12 +1313,14 @@ function hideFontDropdown(){
   document.getElementById('fddList')?.classList.remove('open');
   document.getElementById('fddTrigger')?.classList.remove('open');
 }
-// Закрывать при клике вне
-document.addEventListener('click', e=>{
+// Закрывать при клике/тапе вне дропдауна
+function _closeFddIfOutside(e){
   if(_fddOpen && !document.getElementById('fontPickerWrap')?.contains(e.target)){
     hideFontDropdown();
   }
-});
+}
+document.addEventListener('click', _closeFddIfOutside);
+document.addEventListener('touchstart', _closeFddIfOutside, {passive:true});
 
 async function onFamilyChange(fam, clickedItem){
   const l = S.layers.find(x=>x.id===S.selId);
@@ -1869,7 +1972,8 @@ function syncRange(numId, rangeId){
 }
 
 function fillProps(l){
-  document.getElementById('ptxt').value=l.text;
+  const ptxtEl=document.getElementById('ptxt');
+  if(ptxtEl) ptxtEl.value=(l.text||'').replace(/\r\n/g,'\n');
   const sz=l.size||52, op=l.opacity??100, lh=l.lineH||1.2;
   document.getElementById('psize').value=sz;
   document.getElementById('psize_r').value=Math.min(sz,300);
@@ -1897,7 +2001,9 @@ function fillProps(l){
 
 function upd(k,v){
   const l=S.layers.find(x=>x.id===S.selId);if(!l) return;
-  l[k]=v;if(k==='text') renderLL();redraw();
+  // Нормализуем переносы строк
+  if(k==='text') v=v.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  l[k]=v;if(k==='text') renderLL();redrawMain();
 }
 
 function setAlign(a){
@@ -2339,10 +2445,12 @@ function makeFddItemFor(container,fam,label,styles,previewFile,isMg){
   div.appendChild(cvP); div.appendChild(meta);
   if(fam&&previewFile) drawFontPreview(cvP,previewFile,fam);
   else{const p=cvP.getContext('2d');p.fillStyle='#ffffff';p.font='italic 22px serif';p.textBaseline='middle';p.fillText('serif',8,36);}
-  div.onclick=()=>{
+  const _handler = () => {
     if(isMg) onMgFamilyChange(fam,div);
     else onFamilyChange(fam,div);
   };
+  div.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); _handler(); });
+  div.addEventListener('click',    e => { e.stopPropagation(); _handler(); });
   container.appendChild(div);
   return div;
 }
@@ -2379,13 +2487,15 @@ function mgFilterFonts(q){
     i.style.display=(!q||i.dataset.fam.toLowerCase().includes(q))?'':'none';
   });
 }
-document.addEventListener('click',e=>{
-  if(_mgFddOpen&&!document.getElementById('mg-fontPickerWrap')?.contains(e.target)) {
+function _closeMgFddIfOutside(e){
+  if(_mgFddOpen&&!document.getElementById('mg-fontPickerWrap')?.contains(e.target)){
     _mgFddOpen=false;
     document.getElementById('mg-fddList')?.classList.remove('open');
     document.getElementById('mg-fddTrigger')?.classList.remove('open');
   }
-});
+}
+document.addEventListener('click', _closeMgFddIfOutside);
+document.addEventListener('touchstart', _closeMgFddIfOutside, {passive:true});
 
 // Вспомогательная — рисует pills для любого контейнера
 function renderStylePillsFor(pillsId,ddId,fam,activeFile,isMg){
