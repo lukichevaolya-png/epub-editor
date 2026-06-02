@@ -1190,7 +1190,11 @@ const S = {
   croppedImg:null,  // обрезанное
   layers:[],
   selId:null,
-  mg:{files:[]},
+  mg:{
+    files:[],
+    rawImg:null, croppedImg:null, layers:[], selId:null, cropInst:null,
+    cvs:null, ctx:null,
+  },
 };
 
 const cvs = document.getElementById('cvs');
@@ -1955,12 +1959,6 @@ document.getElementById('minput2')?.addEventListener('change',function(){ loadMe
 
 // ══ MERGE: обложка (параллельная система, не мешает главному редактору) ══
 
-// Состояние обложки объединения — хранится в S.mg
-Object.assign(S.mg, {
-  rawImg:null, croppedImg:null, layers:[], selId:null, cropInst:null,
-  cvs:null, ctx:null,
-});
-
 let _mgLid=0;
 
 function mgMakeLayer(){
@@ -2046,8 +2044,7 @@ function mgDrawLayer(l,sel){
   ctx.globalAlpha=(l.opacity||100)/100;
   const font=l.otFont||null, sz=l.size||48;
   const lh=sz*(l.lineH||1.2);
-  const lines=(l.text||'').split('
-');
+  const lines=(l.text||'').split('\n');
   const totalH=lh*lines.length;
   const widths=lines.map(ln=>mW(ctx,font,ln,sz,l));
   const maxW=Math.max(...widths,1);
@@ -2279,8 +2276,7 @@ async function mgRenderFinal(){
     fc2.translate(l.x*sc,l.y*sc); fc2.rotate(l.rot||0); fc2.globalAlpha=(l.opacity||100)/100;
     const font=l.otFont||null, sz=l.size*sc;
     const lhpx=sz*(l.lineH||1.2);
-    const lines=(l.text||'').split('
-');
+    const lines=(l.text||'').split('\n');
     const totalH=lhpx*lines.length;
     const widths=lines.map(ln=>mW(fc2,font,ln,sz,l));
     setShadow(fc2,l.shadow||'soft');
