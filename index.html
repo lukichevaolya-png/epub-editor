@@ -505,21 +505,63 @@ input[type=range]::-webkit-slider-thumb{
 .crop-area{flex:1;min-height:0;overflow:hidden;border-radius:var(--r-sm);background:#050508}
 .crop-area img{display:block;max-width:100%}
 
+/* ── Undo / Redo toolbar ── */
+.history-bar{display:flex;gap:6px;align-items:center}
+.hbtn{
+  width:32px;height:32px;border-radius:8px;border:1px solid var(--glass-border);
+  background:rgba(255,255,255,.06);color:var(--text2);font-size:15px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.hbtn:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.hbtn:disabled{opacity:.25;cursor:not-allowed}
+
+/* ── Mask layer ── */
+.mask-toolbar{
+  display:none;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;background:rgba(255,255,255,.04);
+  border:1px solid var(--sep);border-radius:var(--r-sm);margin-bottom:8px;
+}
+.mask-toolbar.visible{display:flex}
+.brush-size-row{display:flex;align-items:center;gap:6px;flex:1}
+.brush-preview{
+  width:24px;height:24px;border-radius:50%;border:1px solid var(--sep);
+  background:#fff;flex-shrink:0;transition:all .2s;
+}
+.color-toggle{display:flex;gap:3px}
+.ctog{
+  width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;
+  transition:border .15s;
+}
+.ctog.on{border-color:var(--tint)}
+.ctog-w{background:#fff}
+.ctog-b{background:#111;border:2px solid rgba(255,255,255,.2)}
+.ctog-b.on{border-color:var(--tint)}
+
 /* ── Responsive ── */
 @media(max-width:860px){
   .ced{grid-template-columns:1fr}
   .rpanel{flex-direction:row;flex-wrap:wrap}
-  .rpanel-block{flex:1;min-width:240px}
+  .rpanel-block{flex:1;min-width:200px}
+  .stage-toolbar{flex-direction:column;align-items:flex-start}
 }
 @media(max-width:580px){
-  main{padding:10px 12px 32px}
-  header{padding:10px 16px}
-  .nav-wrap{padding:10px 16px 0}
-  .card{padding:14px}
+  main{padding:10px 10px 32px}
+  header{padding:10px 14px}
+  .nav-wrap{padding:10px 14px 0}
+  .card{padding:12px}
   .row2{grid-template-columns:1fr}
-  .ced{gap:10px}
+  .ced{gap:8px}
   .rpanel{flex-direction:column}
   .rpanel-block{min-width:unset;width:100%}
+  .fdd-list{max-height:220px}
+  .stage-toolbar{flex-direction:column;align-items:flex-start;gap:6px}
+  .slider-row input[type=number]{width:48px}
+  .hbtn{width:28px;height:28px;font-size:13px}
+}
+@media(max-width:400px){
+  .nav-pills button{padding:6px 12px;font-size:12px}
+  header h1{font-size:15px}
 }
 </style>
 </head>
@@ -573,9 +615,15 @@ input[type=range]::-webkit-slider-thumb{
 
   <!-- Редактор обложки -->
   <div class="card glass" id="scover" style="display:none">
-    <div class="card-title">
-      <div class="card-title-icon" style="background:rgba(191,90,242,.12)">🎨</div>
-      Редактор обложки
+    <div class="card-title" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="card-title-icon" style="background:rgba(191,90,242,.12)">🎨</div>
+        Редактор обложки
+      </div>
+      <div class="history-bar">
+        <button class="hbtn" id="btn-undo" onclick="histUndo()" title="Отменить (Ctrl+Z)" disabled>↩</button>
+        <button class="hbtn" id="btn-redo" onclick="histRedo()" title="Повторить (Ctrl+Y)" disabled>↪</button>
+      </div>
     </div>
     <div class="ced">
 
@@ -621,10 +669,37 @@ input[type=range]::-webkit-slider-thumb{
         <div class="rpanel-block">
           <div class="rpanel-title">Текстовые слои</div>
           <div class="llist" id="llist"><div class="llist-empty">Нажмите «+ Добавить»</div></div>
-          <button class="btn btn-purple btn-sm" style="width:100%;justify-content:center" onclick="addLayer()">+ Добавить текст</button>
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-purple btn-sm" style="flex:1;justify-content:center" onclick="addLayer()">+ Текст</button>
+            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="addMaskLayer()" title="Добавить слой маски">🎭 Маска</button>
+          </div>
         </div>
 
         <!-- Свойства слоя -->
+        <!-- Панель маски — показывается вместо основных свойств когда выбран mask-слой -->
+        <div class="rpanel-block" id="mask-panel" style="display:none">
+          <div class="rpanel-title">🎭 Слой маски</div>
+          <div class="mask-toolbar visible">
+            <div class="brush-size-row">
+              <span style="font-size:10px;color:var(--text3)">Кисть</span>
+              <input type="range" id="brush-size" min="2" max="120" value="20" style="flex:1"
+                oninput="updBrush()"/>
+              <div class="brush-preview" id="brush-preview"></div>
+            </div>
+            <div class="color-toggle">
+              <div class="ctog ctog-w on" id="brush-white" onclick="setBrushColor('white')" title="Белый — восстановить"></div>
+              <div class="ctog ctog-b" id="brush-black" onclick="setBrushColor('black')" title="Чёрный — скрыть"></div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.8;margin-bottom:10px">
+            <div>⚪ <b style="color:var(--text2)">Белый</b> — восстанавливает видимость</div>
+            <div>⚫ <b style="color:var(--text2)">Чёрный</b> — скрывает область текста</div>
+            <div style="margin-top:4px;opacity:.7">Маска не влияет на другие слои</div>
+          </div>
+          <div class="hr"></div>
+          <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">🗑 Удалить маску</button>
+        </div>
+
         <div class="rpanel-block" id="ppanel" style="display:none">
           <div class="rpanel-title">Свойства</div>
 
@@ -717,18 +792,6 @@ input[type=range]::-webkit-slider-thumb{
 
           <div class="hr"></div>
           <button class="btn btn-red btn-sm" style="width:100%;justify-content:center" onclick="delSel()">🗑 Удалить слой</button>
-        </div>
-
-        <!-- Справка -->
-        <div class="rpanel-block">
-          <div class="rpanel-title">Управление</div>
-          <div style="font-size:11px;color:var(--text3);line-height:2.2">
-            <div>🖱 <b style="color:var(--text2)">Drag</b> — переместить</div>
-            <div>↔ <b style="color:var(--text2)">Угловые точки</b> — масштаб</div>
-            <div>🔄 <b style="color:var(--text2)">Верхняя точка</b> — поворот</div>
-            <div>✏️ <b style="color:var(--text2)">Двойной клик</b> — изменить текст</div>
-            <div>🧲 <b style="color:var(--text2)">Магнитная привязка</b> к центру</div>
-          </div>
         </div>
 
       </div>
@@ -870,6 +933,12 @@ input[type=range]::-webkit-slider-thumb{
             <div class="slider-row">
               <input type="range" id="mg-popac_r" min="0" max="100" value="100" oninput="syncNum('mg-popac','mg-popac_r');mgUpd('opacity',+this.value)"/>
               <input type="number" id="mg-popac" min="0" max="100" value="100" oninput="syncRange('mg-popac','mg-popac_r');mgUpd('opacity',+this.value)"/>
+            </div>
+          </div>
+          <div class="pg" style="margin-bottom:6px"><div class="pg-label">Межстрочный</div>
+            <div class="slider-row">
+              <input type="range" id="mg-plineh_r" min="0.5" max="4" step="0.05" value="1.2" oninput="syncNum('mg-plineh','mg-plineh_r');mgUpd('lineH',+this.value)"/>
+              <input type="number" id="mg-plineh" min="0.5" max="4" step="0.05" value="1.2" oninput="syncRange('mg-plineh','mg-plineh_r');mgUpd('lineH',+this.value)"/>
             </div>
           </div>
           <div class="hr"></div>
@@ -1358,9 +1427,18 @@ function enterCropMode(){
   img.src='';
   img.onload=()=>{
     const r=parseFloat(document.getElementById('aratio').value);
+    // minContainerHeight = ширина canvas / ratio, чтобы кроппер не больше превью
+    const cw = document.getElementById('stage-canvas-wrap').offsetWidth || cvs.width || 400;
+    const ch = Math.round(cw / r);
     cropInst=new Cropper(img,{
-      aspectRatio:r, viewMode:1, autoCropArea:0.95,
-      responsive:true, background:false,
+      aspectRatio: r,
+      viewMode: 1,
+      autoCropArea: 1.0,   // рамка = весь кадр по умолчанию (края совпадают с краями фото)
+      minContainerWidth: cw,
+      minContainerHeight: ch,
+      responsive: true,
+      background: false,
+      checkCrossOrigin: false,
     });
   };
   img.src=tmp.toDataURL('image/jpeg',0.92);
@@ -1998,7 +2076,9 @@ function mgEnterCrop(){
   hide('mg-bcrop'); show('mg-bapply'); show('mg-bcancel');
   img.onload=()=>{
     const r=parseFloat(document.getElementById('mg-aratio').value);
-    S.mg.cropInst=new Cropper(img,{aspectRatio:r,viewMode:1,autoCropArea:.95,responsive:true,background:false});
+    const mcw = document.getElementById('mg-stage-canvas-wrap')?.offsetWidth || S.mg.cvs?.width || 400;
+    const mch = Math.round(mcw / r);
+    S.mg.cropInst=new Cropper(img,{aspectRatio:r,viewMode:1,autoCropArea:1.0,minContainerWidth:mcw,minContainerHeight:mch,responsive:true,background:false,checkCrossOrigin:false});
   };
   img.src=tmp.toDataURL('image/jpeg',.92);
 }
@@ -2147,6 +2227,10 @@ function mgFillProps(l){
   document.getElementById('mg-pshad').value=l.shadow||'soft';
   document.getElementById('mg-popac').value=l.opacity??100;
   document.getElementById('mg-popac_r').value=l.opacity??100;
+  const lh2=l.lineH||1.2;
+  document.getElementById('mg-plineh')?.setAttribute('value',lh2);
+  const mglhr=document.getElementById('mg-plineh_r');if(mglhr) mglhr.value=Math.min(lh2,4);
+  const mgln=document.getElementById('mg-plineh');if(mgln) mgln.value=lh2;
   // Шрифт
   const fddLabel=document.getElementById('mg-fddLabel');
   if(fddLabel) fddLabel.textContent=l.fontFamily||'— Без шрифта —';
@@ -2316,7 +2400,13 @@ async function execMerge(){
         const sf=zip.file(dir?`${dir}/${href}`:href)||zip.file(href);if(!sf) continue;
         const data=await sf.async('arraybuffer');
         if(mt==='application/xhtml+xml'||mt==='text/html'){ci++;const nh=`chapters/ch_${String(ci).padStart(4,'0')}.xhtml`;hm[href]=nh;oz.file(`OEBPS/${nh}`,new TextDecoder().decode(data));mf[`ch${ci}`]={href:nh,mediaType:'application/xhtml+xml'};}
-        else if(mt.startsWith('image/')){ii++;const ext=href.split('.').pop()||'jpg',nh=`images/img_${String(ii).padStart(4,'0')}.${ext}`;hm[href]=nh;oz.file(`OEBPS/${nh}`,data);const mid=`img${ii}`;mf[mid]={href:nh,mediaType:mt};if(props.includes('cover')||id.toLowerCase().includes('cover'))mf[mid].properties='cover-image';}
+        else if(mt.startsWith('image/')){
+          // Пропускаем изображения-обложки из исходных книг (заменим своей)
+          if(props.includes('cover-image')||id.toLowerCase().includes('cover')) continue;
+          const mcov=od.querySelector('meta[name="cover"]');
+          if(mcov&&mcov.getAttribute('content')===id) continue;
+          ii++;const ext=href.split('.').pop()||'jpg',nh=`images/img_${String(ii).padStart(4,'0')}.${ext}`;hm[href]=nh;oz.file(`OEBPS/${nh}`,data);mf[`img${ii}`]={href:nh,mediaType:mt};
+        }
         else if(mt==='text/css'||mt==='text/x-css'){csi++;const nh=`css/s${String(csi).padStart(3,'0')}.css`;hm[href]=nh;oz.file(`OEBPS/${nh}`,data);mf[`css${csi}`]={href:nh,mediaType:'text/css'};}
         else if(mt.includes('font')||mt.includes('opentype')||mt.includes('sfnt')){fi++;const ext=href.split('.').pop()||'ttf',nh=`fonts/f${String(fi).padStart(3,'0')}.${ext}`;hm[href]=nh;oz.file(`OEBPS/${nh}`,data);mf[`font${fi}`]={href:nh,mediaType:mt};}
       }
@@ -2362,10 +2452,252 @@ function resetMg(){
 }
 
 // ═══════════════════════════════════════════════
+// ИСТОРИЯ (UNDO / REDO)
+// ═══════════════════════════════════════════════
+const HIST=[]; let HIST_IDX=-1; const HIST_MAX=30;
+
+function histSnapshot(){
+  const snap=S.layers.map(l=>{
+    const cp={...l};
+    if(l.type==='mask'&&l.maskCanvas){ cp._maskData=l.maskCanvas.toDataURL(); cp.maskCanvas=null; }
+    return cp;
+  });
+  HIST.splice(HIST_IDX+1);
+  HIST.push(snap);
+  if(HIST.length>HIST_MAX) HIST.shift(); else HIST_IDX++;
+  histBtns();
+}
+
+function histUndo(){ if(HIST_IDX<=0)return; HIST_IDX--; histRestore(HIST[HIST_IDX]); }
+function histRedo(){ if(HIST_IDX>=HIST.length-1)return; HIST_IDX++; histRestore(HIST[HIST_IDX]); }
+
+async function histRestore(snap){
+  S.layers=await Promise.all(snap.map(async l=>{
+    const cp={...l};
+    if(l.type==='mask'&&l._maskData){
+      const bmp=await createImageBitmap(await (await fetch(l._maskData)).blob());
+      const mc=document.createElement('canvas'); mc.width=cvs.width; mc.height=cvs.height;
+      mc.getContext('2d').drawImage(bmp,0,0,mc.width,mc.height);
+      cp.maskCanvas=mc; cp._maskData=null;
+    }
+    if(l.fontFile&&FONT_CACHE[l.fontFile]) cp.otFont=FONT_CACHE[l.fontFile];
+    return cp;
+  }));
+  S.selId=null; hide('ppanel'); hide('mask-panel');
+  renderLL(); redraw(); histBtns();
+}
+
+function histBtns(){
+  const u=document.getElementById('btn-undo'),r=document.getElementById('btn-redo');
+  if(u) u.disabled=(HIST_IDX<=0);
+  if(r) r.disabled=(HIST_IDX>=HIST.length-1);
+}
+
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key==='z'){e.preventDefault();histUndo();}
+  if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();histRedo();}
+  if(e.key==='Escape'){if(cropInst) exitCropMode();}
+});
+
+// ═══════════════════════════════════════════════
+// МАСКА (MASK LAYER)
+// ═══════════════════════════════════════════════
+let brushColor='white', brushSize=20, maskDrawing=false;
+
+function updBrush(){
+  brushSize=+(document.getElementById('brush-size')?.value||20);
+  const prev=document.getElementById('brush-preview');
+  const sz=Math.max(8,Math.min(brushSize,24));
+  if(prev){prev.style.width=sz+'px';prev.style.height=sz+'px';
+    prev.style.background=brushColor==='white'?'#fff':'#111';}
+}
+function setBrushColor(col){
+  brushColor=col;
+  document.getElementById('brush-white')?.classList.toggle('on',col==='white');
+  document.getElementById('brush-black')?.classList.toggle('on',col==='black');
+  updBrush();
+}
+
+function addMaskLayer(){
+  const mc=document.createElement('canvas');
+  mc.width=cvs.width; mc.height=cvs.height;
+  const mctx=mc.getContext('2d');
+  mctx.fillStyle='white'; mctx.fillRect(0,0,mc.width,mc.height);
+  const layer={id:++lid,type:'mask',text:'[Маска]',x:0,y:0,rot:0,opacity:100,
+    maskCanvas:mc,_bw:cvs.width,_bh:cvs.height};
+  S.layers.push(layer);
+  selLayer(layer.id); renderLL(); redraw();
+  histSnapshot();
+}
+
+function getMaskLayer(){ return S.layers.find(l=>l.id===S.selId&&l.type==='mask'); }
+
+function maskDrawAt(e,ml){
+  const{x,y}=cxy(e);
+  const mc=ml.maskCanvas;
+  const mctx=mc.getContext('2d');
+  const scx=mc.width/cvs.width, scy=mc.height/cvs.height;
+  mctx.globalCompositeOperation='source-over';
+  mctx.fillStyle=brushColor;
+  mctx.beginPath();
+  mctx.arc(x*scx,y*scy,(brushSize*scx)/2,0,Math.PI*2);
+  mctx.fill();
+  redraw();
+}
+
+// Переопределяем canvas-события чтобы поддерживать рисование маски
+const _ownDown=onDown, _ownMove=onMove, _ownUp=onUp;
+cvs.removeEventListener('mousedown',onDown);
+cvs.removeEventListener('mousemove',onMove);
+cvs.removeEventListener('mouseup',onUp);
+cvs.removeEventListener('mouseleave',onUp);
+
+function onDownFull(e){
+  const ml=getMaskLayer();
+  if(ml){maskDrawing=true;maskDrawAt(e,ml);}
+  else _ownDown(e);
+}
+function onMoveFull(e){
+  if(maskDrawing){const ml=getMaskLayer();if(ml){maskDrawAt(e,ml);return;}}
+  _ownMove(e);
+}
+function onUpFull(e){
+  if(maskDrawing){maskDrawing=false;histSnapshot();return;}
+  _ownUp(e);
+}
+
+cvs.addEventListener('mousedown',onDownFull);
+cvs.addEventListener('mousemove',onMoveFull);
+cvs.addEventListener('mouseup',onUpFull);
+cvs.addEventListener('mouseleave',onUpFull);
+cvs.addEventListener('touchstart',e=>{e.preventDefault();onDownFull(te(e));},{passive:false});
+cvs.addEventListener('touchmove',e=>{e.preventDefault();onMoveFull(te(e));},{passive:false});
+cvs.addEventListener('touchend',e=>{onUpFull(te(e));},{passive:false});
+
+// Обновляем selLayer — показываем нужную панель
+const _origSelLayer=selLayer;
+function selLayer(id){
+  S.selId=id; renderLL();
+  const l=id?S.layers.find(x=>x.id===id):null;
+  if(l&&l.type==='mask'){
+    hide('ppanel'); show('mask-panel');
+  } else if(l){
+    hide('mask-panel');
+    fillProps(l); show('ppanel');
+  } else {
+    hide('ppanel'); hide('mask-panel');
+  }
+  redraw();
+}
+
+// ═══════════════════════════════════════════════
+// РЕНДЕР МАСКИ поверх текстовых слоёв
+// ═══════════════════════════════════════════════
+// Патчим drawLayer — маска применяется как compositing к ПРЕДЫДУЩИМ слоям
+// Реализация: маска рисуется поверх в режиме destination-in/out
+// Простая реализация: для каждого текстового слоя применяем маску через offscreen
+
+// Патчим redraw чтобы маска работала корректно
+const _baseRedraw = redraw;
+function redraw(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  const src=S.croppedImg||S.rawImg;
+  if(src){ ctx.drawImage(src,0,0,cvs.width,cvs.height); }
+  else{
+    ctx.fillStyle='#0a0a12';ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle='rgba(255,255,255,.15)';ctx.font='12px Inter,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('Загрузите изображение обложки',cvs.width/2,cvs.height/2);
+  }
+  // Рендерим слои. Маска применяется к группе предшествующих текстовых слоёв
+  const maskLayer=S.layers.find(l=>l.type==='mask');
+  if(maskLayer&&maskLayer.maskCanvas){
+    // Рисуем все НЕ-маска слои в offscreen, затем применяем маску
+    const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height;
+    const octx=off.getContext('2d');
+    S.layers.filter(l=>l.type!=='mask').forEach(l=>{
+      // Временно рисуем в off
+      const saved={ctx: ctx}; // подменяем контекст
+      drawLayerToCtx(octx, l, l.id===S.selId&&l.type!=='mask');
+    });
+    // Применяем маску
+    octx.globalCompositeOperation='destination-in';
+    octx.drawImage(maskLayer.maskCanvas,0,0,off.width,off.height);
+    octx.globalCompositeOperation='source-over';
+    ctx.drawImage(off,0,0);
+    // Рисуем handles выбранного слоя поверх
+    const selL=S.layers.find(l=>l.id===S.selId);
+    if(selL&&selL.type!=='mask'&&selL._bw) drawHandles(selL,selL._bw,selL._bh);
+    // Подсвечиваем маску если она выбрана
+    if(maskLayer.id===S.selId) drawMaskOverlay(maskLayer);
+  } else {
+    S.layers.forEach(l=>{ if(l.type!=='mask') drawLayer(l,l.id===S.selId); });
+  }
+}
+
+function drawMaskOverlay(ml){
+  // Показываем маску как тонкий цветной контур
+  ctx.save();
+  ctx.globalAlpha=0.3;
+  ctx.drawImage(ml.maskCanvas,0,0,cvs.width,cvs.height);
+  ctx.restore();
+  ctx.save();
+  ctx.strokeStyle='rgba(10,132,255,.6)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+  ctx.strokeRect(2,2,cvs.width-4,cvs.height-4);ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// drawLayerToCtx — рисует слой в указанный контекст
+function drawLayerToCtx(tctx, l, sel){
+  tctx.save();
+  tctx.translate(l.x,l.y); tctx.rotate(l.rot||0);
+  tctx.globalAlpha=(l.opacity||100)/100;
+  const font=l.otFont||null, sz=l.size||48;
+  const lh=sz*(l.lineH||1.2);
+  const lines=(l.text||'').split('\n');
+  const totalH=lh*lines.length;
+  const widths=lines.map(ln=>mW(tctx,font,ln,sz,l));
+  const maxW=Math.max(...widths,1);
+  l._bw=maxW; l._bh=totalH;
+  setShadow(tctx,l.shadow||'soft');
+  let cy=-totalH/2+sz*.82;
+  lines.forEach((ln,i)=>{
+    const lw=widths[i]; let ox=0;
+    if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+    if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(tctx);}
+    else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;tctx.font=ff;tctx.fillStyle=l.color||'#fff';tctx.textAlign=l.align||'center';tctx.textBaseline='alphabetic';tctx.fillText(ln,0,cy);}
+    if(l.strike){tctx.shadowColor='transparent';tctx.shadowBlur=0;tctx.fillStyle=l.color||'#fff';tctx.fillRect(ox,cy-sz*.3,lw,sz*.07);setShadow(tctx,l.shadow||'soft');}
+    cy+=lh;
+  });
+  tctx.shadowColor='transparent';tctx.shadowBlur=0;tctx.shadowOffsetX=0;tctx.shadowOffsetY=0;
+  tctx.restore();
+}
+
+// Обновляем renderFinal чтобы применять маску при сохранении
+const _baseRenderFinal=renderFinal;
+async function renderFinal(srcBitmap){
+  const blob=await _baseRenderFinal(srcBitmap);
+  const maskL=S.layers.find(l=>l.type==='mask');
+  if(!maskL||!maskL.maskCanvas||!blob) return blob;
+  // Применяем маску к финальному изображению
+  const src=srcBitmap;
+  const ow=src.width, oh=src.height;
+  const sc=ow/cvs.width;
+  const mc=document.createElement('canvas'); mc.width=ow; mc.height=oh;
+  const mctx2=mc.getContext('2d');
+  mctx2.drawImage(await createImageBitmap(blob),0,0);
+  mctx2.globalCompositeOperation='destination-in';
+  mctx2.drawImage(maskL.maskCanvas,0,0,ow,oh);
+  return new Promise(res=>mc.toBlob(res,'image/jpeg',.95));
+}
+
+// ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
 initCanvas();
 loadFontData();
+setTimeout(()=>{ histSnapshot(); },200);
+updBrush();
 </script>
 </body>
 </html>
