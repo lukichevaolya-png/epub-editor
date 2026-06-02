@@ -671,7 +671,7 @@ input[type=range]::-webkit-slider-thumb{
           <div class="llist" id="llist"><div class="llist-empty">Нажмите «+ Добавить»</div></div>
           <div style="display:flex;gap:5px">
             <button class="btn btn-purple btn-sm" style="flex:1;justify-content:center" onclick="addLayer()">+ Текст</button>
-            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="addMaskLayer()" title="Добавить слой маски">🎭 Маска</button>
+            <button class="btn btn-glass btn-sm" style="flex:1;justify-content:center" onclick="addMaskToSelected()" title="Добавить маску к выбранному тексту">🎭 Маска</button>
           </div>
         </div>
 
@@ -1619,9 +1619,7 @@ cvs.addEventListener('mousemove',onMove);
 cvs.addEventListener('mouseup',onUp);
 cvs.addEventListener('mouseleave',onUp);
 cvs.addEventListener('dblclick',onDbl);
-cvs.addEventListener('touchstart',e=>{e.preventDefault();onDown(te(e));},{passive:false});
-cvs.addEventListener('touchmove',e=>{e.preventDefault();onMove(te(e));},{passive:false});
-cvs.addEventListener('touchend',e=>{onUp(te(e));},{passive:false});
+// touch events теперь обрабатываются в блоке ниже (с поддержкой маски)
 
 function te(e){const t=e.touches[0]||e.changedTouches[0];return{clientX:t.clientX,clientY:t.clientY};}
 function cxy(e){const r=cvs.getBoundingClientRect();const sx=cvs.width/r.width;const sy=cvs.height/r.height;return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
@@ -1867,7 +1865,7 @@ async function saveEpub(){
     // Рендерим финальную обложку в полном разрешении исходника
     const src=S.croppedImg||S.rawImg;
     if(src){
-      const blob=await renderFinal(src);
+      const blob=await renderFinalWithMasks(src);
       if(blob){
         const dir=opfDirOf(S.opfPath);
         let ch=null;
@@ -2454,43 +2452,64 @@ function resetMg(){
 // ═══════════════════════════════════════════════
 // ИСТОРИЯ (UNDO / REDO)
 // ═══════════════════════════════════════════════
-const HIST=[]; let HIST_IDX=-1; const HIST_MAX=30;
+const HIST=[]; let HIST_IDX=-1; const HIST_MAX=40;
 
-function histSnapshot(){
-  const snap=S.layers.map(l=>{
-    const cp={...l};
-    if(l.type==='mask'&&l.maskCanvas){ cp._maskData=l.maskCanvas.toDataURL(); cp.maskCanvas=null; }
+// Сериализуем состояние слоёв для хранения в стеке
+function serializeLayers(){
+  return S.layers.map(l=>{
+    const cp={...l, otFont:null}; // не сериализуем Font-объект
+    if(l.mask){
+      cp.mask={...l.mask, maskCanvas:null, _data: l.mask.maskCanvas?.toDataURL()||null};
+    }
     return cp;
   });
-  HIST.splice(HIST_IDX+1);
-  HIST.push(snap);
-  if(HIST.length>HIST_MAX) HIST.shift(); else HIST_IDX++;
-  histBtns();
 }
 
-function histUndo(){ if(HIST_IDX<=0)return; HIST_IDX--; histRestore(HIST[HIST_IDX]); }
-function histRedo(){ if(HIST_IDX>=HIST.length-1)return; HIST_IDX++; histRestore(HIST[HIST_IDX]); }
-
-async function histRestore(snap){
-  S.layers=await Promise.all(snap.map(async l=>{
+// Десериализуем: восстанавливаем maskCanvas и otFont из кэшей
+async function deserializeLayers(snap){
+  return Promise.all(snap.map(async l=>{
     const cp={...l};
-    if(l.type==='mask'&&l._maskData){
-      const bmp=await createImageBitmap(await (await fetch(l._maskData)).blob());
-      const mc=document.createElement('canvas'); mc.width=cvs.width; mc.height=cvs.height;
-      mc.getContext('2d').drawImage(bmp,0,0,mc.width,mc.height);
-      cp.maskCanvas=mc; cp._maskData=null;
+    if(l.mask&&l.mask._data){
+      const img=new Image();
+      await new Promise(res=>{img.onload=res; img.src=l.mask._data;});
+      const mc=document.createElement('canvas');
+      mc.width=cvs.width; mc.height=cvs.height;
+      mc.getContext('2d').drawImage(img,0,0,mc.width,mc.height);
+      cp.mask={...l.mask, maskCanvas:mc, _data:null};
     }
     if(l.fontFile&&FONT_CACHE[l.fontFile]) cp.otFont=FONT_CACHE[l.fontFile];
     return cp;
   }));
-  S.selId=null; hide('ppanel'); hide('mask-panel');
-  renderLL(); redraw(); histBtns();
+}
+
+function histSnapshot(){
+  // Обрезаем redo-ветку
+  HIST.splice(HIST_IDX+1);
+  HIST.push(serializeLayers());
+  if(HIST.length>HIST_MAX) HIST.shift(); else HIST_IDX++;
+  histBtns();
 }
 
 function histBtns(){
   const u=document.getElementById('btn-undo'),r=document.getElementById('btn-redo');
   if(u) u.disabled=(HIST_IDX<=0);
   if(r) r.disabled=(HIST_IDX>=HIST.length-1);
+}
+
+async function histUndo(){
+  if(HIST_IDX<=0) return;
+  HIST_IDX--;
+  S.layers=await deserializeLayers(HIST[HIST_IDX]);
+  S.selId=null; hide('ppanel'); hide('mask-panel');
+  renderLL(); redrawMain(); histBtns();
+}
+
+async function histRedo(){
+  if(HIST_IDX>=HIST.length-1) return;
+  HIST_IDX++;
+  S.layers=await deserializeLayers(HIST[HIST_IDX]);
+  S.selId=null; hide('ppanel'); hide('mask-panel');
+  renderLL(); redrawMain(); histBtns();
 }
 
 document.addEventListener('keydown',e=>{
@@ -2500,17 +2519,23 @@ document.addEventListener('keydown',e=>{
 });
 
 // ═══════════════════════════════════════════════
-// МАСКА (MASK LAYER)
+// МАСКА — привязана к текстовому слою (layer.mask)
+// Архитектура: каждый текстовый слой может иметь layer.mask = {maskCanvas, ...}
+// Маска хранит белый/чёрный холст: чёрный = скрыть, белый = показать
+// При рендере: текст рисуется в offscreen, затем destination-in с маской
 // ═══════════════════════════════════════════════
-let brushColor='white', brushSize=20, maskDrawing=false;
+let brushColor='white', brushSize=20, maskDrawing=false, maskTargetId=null;
 
 function updBrush(){
   brushSize=+(document.getElementById('brush-size')?.value||20);
   const prev=document.getElementById('brush-preview');
   const sz=Math.max(8,Math.min(brushSize,24));
-  if(prev){prev.style.width=sz+'px';prev.style.height=sz+'px';
-    prev.style.background=brushColor==='white'?'#fff':'#111';}
+  if(prev){
+    prev.style.width=sz+'px'; prev.style.height=sz+'px';
+    prev.style.background=brushColor==='white'?'#fff':'#111';
+  }
 }
+
 function setBrushColor(col){
   brushColor=col;
   document.getElementById('brush-white')?.classList.toggle('on',col==='white');
@@ -2518,137 +2543,150 @@ function setBrushColor(col){
   updBrush();
 }
 
-function addMaskLayer(){
+// Создаём маску для ВЫБРАННОГО текстового слоя
+function addMaskToSelected(){
+  const l=S.layers.find(x=>x.id===S.selId);
+  if(!l||l.type==='mask'){
+    toast('Сначала выберите текстовый слой','err'); return;
+  }
+  if(l.mask){
+    toast('У этого слоя уже есть маска — выберите его маску в списке','err'); return;
+  }
+  // Создаём маску: начинаем с полностью белого (всё видно)
   const mc=document.createElement('canvas');
   mc.width=cvs.width; mc.height=cvs.height;
   const mctx=mc.getContext('2d');
   mctx.fillStyle='white'; mctx.fillRect(0,0,mc.width,mc.height);
-  const layer={id:++lid,type:'mask',text:'[Маска]',x:0,y:0,rot:0,opacity:100,
-    maskCanvas:mc,_bw:cvs.width,_bh:cvs.height};
-  S.layers.push(layer);
-  selLayer(layer.id); renderLL(); redraw();
+  l.mask={maskCanvas:mc};
+  // Выбираем маску для рисования
+  S.selId='mask:'+l.id;
+  maskTargetId=l.id;
+  renderLL(); redrawMain();
+  show('mask-panel'); hide('ppanel');
   histSnapshot();
 }
 
-function getMaskLayer(){ return S.layers.find(l=>l.id===S.selId&&l.type==='mask'); }
-
-function maskDrawAt(e,ml){
-  const{x,y}=cxy(e);
-  const mc=ml.maskCanvas;
-  const mctx=mc.getContext('2d');
-  const scx=mc.width/cvs.width, scy=mc.height/cvs.height;
-  mctx.globalCompositeOperation='source-over';
-  mctx.fillStyle=brushColor;
-  mctx.beginPath();
-  mctx.arc(x*scx,y*scy,(brushSize*scx)/2,0,Math.PI*2);
-  mctx.fill();
-  redraw();
-}
-
-// Переопределяем canvas-события чтобы поддерживать рисование маски
-const _ownDown=onDown, _ownMove=onMove, _ownUp=onUp;
-cvs.removeEventListener('mousedown',onDown);
-cvs.removeEventListener('mousemove',onMove);
-cvs.removeEventListener('mouseup',onUp);
-cvs.removeEventListener('mouseleave',onUp);
-
-function onDownFull(e){
-  const ml=getMaskLayer();
-  if(ml){maskDrawing=true;maskDrawAt(e,ml);}
-  else _ownDown(e);
-}
-function onMoveFull(e){
-  if(maskDrawing){const ml=getMaskLayer();if(ml){maskDrawAt(e,ml);return;}}
-  _ownMove(e);
-}
-function onUpFull(e){
-  if(maskDrawing){maskDrawing=false;histSnapshot();return;}
-  _ownUp(e);
-}
-
-cvs.addEventListener('mousedown',onDownFull);
-cvs.addEventListener('mousemove',onMoveFull);
-cvs.addEventListener('mouseup',onUpFull);
-cvs.addEventListener('mouseleave',onUpFull);
-cvs.addEventListener('touchstart',e=>{e.preventDefault();onDownFull(te(e));},{passive:false});
-cvs.addEventListener('touchmove',e=>{e.preventDefault();onMoveFull(te(e));},{passive:false});
-cvs.addEventListener('touchend',e=>{onUpFull(te(e));},{passive:false});
-
-// Обновляем selLayer — показываем нужную панель
-const _origSelLayer=selLayer;
-function selLayer(id){
-  S.selId=id; renderLL();
-  const l=id?S.layers.find(x=>x.id===id):null;
-  if(l&&l.type==='mask'){
-    hide('ppanel'); show('mask-panel');
-  } else if(l){
-    hide('mask-panel');
-    fillProps(l); show('ppanel');
-  } else {
-    hide('ppanel'); hide('mask-panel');
+// Удаляем маску у текущего слоя
+function delMask(){
+  // Найти слой по maskTargetId или по selId
+  let tid=maskTargetId;
+  if(!tid&&typeof S.selId==='string'&&S.selId.startsWith('mask:')){
+    tid=+S.selId.split(':')[1];
   }
-  redraw();
+  const l=S.layers.find(x=>x.id===tid);
+  if(l) delete l.mask;
+  S.selId=null; maskTargetId=null;
+  hide('mask-panel'); renderLL(); redrawMain();
+  histSnapshot();
+}
+
+// renderLL — обновляем чтобы показывать маску как дочерний пункт
+function renderLL(){
+  const el=document.getElementById('llist');
+  if(!S.layers.length){el.innerHTML='<div class="llist-empty">Нажмите «+ Добавить»</div>';return;}
+  const rows=[];
+  // Показываем в обратном порядке (верхние слои сверху)
+  [...S.layers].reverse().forEach(l=>{
+    const isSel=(S.selId===l.id);
+    const isMaskSel=(S.selId==='mask:'+l.id);
+    rows.push(`<div class="litem${isSel?' sel':''}" onclick="selTextLayer(${l.id})">
+      <span style="font-size:10px;opacity:.5;margin-right:4px">T</span>
+      <span class="litem-label">${eh(l.text||'(пусто)')}</span>
+      <span class="litem-del" onclick="event.stopPropagation();deleteLayer(${l.id})">✕</span>
+    </div>`);
+    if(l.mask){
+      rows.push(`<div class="litem${isMaskSel?' sel':''}" style="margin-left:18px" onclick="selMaskOf(${l.id})">
+        <span style="font-size:10px;opacity:.5;margin-right:4px">🎭</span>
+        <span class="litem-label" style="color:var(--tint3)">Маска</span>
+        <span class="litem-del" onclick="event.stopPropagation();delMaskOf(${l.id})">✕</span>
+      </div>`);
+    }
+  });
+  el.innerHTML=rows.join('');
+}
+
+function selTextLayer(id){
+  S.selId=id; maskTargetId=null;
+  hide('mask-panel');
+  const l=S.layers.find(x=>x.id===id);
+  if(l){fillProps(l);show('ppanel');}
+  redrawMain();
+}
+
+function selMaskOf(layerId){
+  S.selId='mask:'+layerId;
+  maskTargetId=layerId;
+  hide('ppanel'); show('mask-panel');
+  redrawMain();
+}
+
+function delMaskOf(layerId){
+  const l=S.layers.find(x=>x.id===layerId);
+  if(l) delete l.mask;
+  if(S.selId==='mask:'+layerId){ S.selId=null; maskTargetId=null; hide('mask-panel'); }
+  renderLL(); redrawMain(); histSnapshot();
 }
 
 // ═══════════════════════════════════════════════
-// РЕНДЕР МАСКИ поверх текстовых слоёв
+// РЕНДЕР с поддержкой маски
 // ═══════════════════════════════════════════════
-// Патчим drawLayer — маска применяется как compositing к ПРЕДЫДУЩИМ слоям
-// Реализация: маска рисуется поверх в режиме destination-in/out
-// Простая реализация: для каждого текстового слоя применяем маску через offscreen
 
-// Патчим redraw чтобы маска работала корректно
-const _baseRedraw = redraw;
-function redraw(){
+// Основной рендер (без рекурсии)
+function redrawMain(){
   ctx.clearRect(0,0,cvs.width,cvs.height);
   const src=S.croppedImg||S.rawImg;
-  if(src){ ctx.drawImage(src,0,0,cvs.width,cvs.height); }
-  else{
+  if(src){
+    ctx.drawImage(src,0,0,cvs.width,cvs.height);
+  } else {
     ctx.fillStyle='#0a0a12';ctx.fillRect(0,0,cvs.width,cvs.height);
     ctx.fillStyle='rgba(255,255,255,.15)';ctx.font='12px Inter,sans-serif';
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('Загрузите изображение обложки',cvs.width/2,cvs.height/2);
   }
-  // Рендерим слои. Маска применяется к группе предшествующих текстовых слоёв
-  const maskLayer=S.layers.find(l=>l.type==='mask');
-  if(maskLayer&&maskLayer.maskCanvas){
-    // Рисуем все НЕ-маска слои в offscreen, затем применяем маску
-    const off=document.createElement('canvas'); off.width=cvs.width; off.height=cvs.height;
+  S.layers.forEach(l=>{
+    drawTextLayerWithMask(l, l.id===S.selId);
+  });
+}
+
+// Рисуем текстовый слой, применяя маску если есть
+function drawTextLayerWithMask(l, sel){
+  if(l.mask&&l.mask.maskCanvas){
+    // Рисуем текст в offscreen
+    const off=document.createElement('canvas');
+    off.width=cvs.width; off.height=cvs.height;
     const octx=off.getContext('2d');
-    S.layers.filter(l=>l.type!=='mask').forEach(l=>{
-      // Временно рисуем в off
-      const saved={ctx: ctx}; // подменяем контекст
-      drawLayerToCtx(octx, l, l.id===S.selId&&l.type!=='mask');
-    });
-    // Применяем маску
+    drawLayerCtx(octx, l, false);
+    // Применяем маску: чёрные пиксели маски = прозрачность текста
+    // Используем destination-in: маска белая=показать, чёрная=скрыть
     octx.globalCompositeOperation='destination-in';
-    octx.drawImage(maskLayer.maskCanvas,0,0,off.width,off.height);
-    octx.globalCompositeOperation='source-over';
+    octx.drawImage(l.mask.maskCanvas,0,0,off.width,off.height);
+    // Рисуем результат на основной canvas
     ctx.drawImage(off,0,0);
-    // Рисуем handles выбранного слоя поверх
-    const selL=S.layers.find(l=>l.id===S.selId);
-    if(selL&&selL.type!=='mask'&&selL._bw) drawHandles(selL,selL._bw,selL._bh);
-    // Подсвечиваем маску если она выбрана
-    if(maskLayer.id===S.selId) drawMaskOverlay(maskLayer);
+    // Рисуем handles поверх если выбран
+    if(sel) drawHandles(l,l._bw||50,l._bh||50);
+    // Показываем контур маски если маска выбрана
+    if(S.selId==='mask:'+l.id) drawMaskHint(l.mask.maskCanvas);
   } else {
-    S.layers.forEach(l=>{ if(l.type!=='mask') drawLayer(l,l.id===S.selId); });
+    drawLayer(l, sel);
   }
 }
 
-function drawMaskOverlay(ml){
-  // Показываем маску как тонкий цветной контур
+// Контур активной маски (полупрозрачный)
+function drawMaskHint(mc){
   ctx.save();
-  ctx.globalAlpha=0.3;
-  ctx.drawImage(ml.maskCanvas,0,0,cvs.width,cvs.height);
-  ctx.restore();
-  ctx.save();
-  ctx.strokeStyle='rgba(10,132,255,.6)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
-  ctx.strokeRect(2,2,cvs.width-4,cvs.height-4);ctx.setLineDash([]);
+  ctx.globalAlpha=0.25;
+  ctx.globalCompositeOperation='multiply';
+  ctx.drawImage(mc,0,0,cvs.width,cvs.height);
+  ctx.globalCompositeOperation='source-over';
+  ctx.globalAlpha=1;
+  ctx.strokeStyle='rgba(191,90,242,.7)';ctx.lineWidth=1.5;
+  ctx.setLineDash([4,3]);ctx.strokeRect(2,2,cvs.width-4,cvs.height-4);
+  ctx.setLineDash([]);
   ctx.restore();
 }
 
-// drawLayerToCtx — рисует слой в указанный контекст
-function drawLayerToCtx(tctx, l, sel){
+// Универсальная функция рисования слоя в любой ctx
+function drawLayerCtx(tctx, l, sel){
   tctx.save();
   tctx.translate(l.x,l.y); tctx.rotate(l.rot||0);
   tctx.globalAlpha=(l.opacity||100)/100;
@@ -2673,22 +2711,204 @@ function drawLayerToCtx(tctx, l, sel){
   tctx.restore();
 }
 
-// Обновляем renderFinal чтобы применять маску при сохранении
-const _baseRenderFinal=renderFinal;
-async function renderFinal(srcBitmap){
-  const blob=await _baseRenderFinal(srcBitmap);
-  const maskL=S.layers.find(l=>l.type==='mask');
-  if(!maskL||!maskL.maskCanvas||!blob) return blob;
-  // Применяем маску к финальному изображению
+// ═══════════════════════════════════════════════
+// СОБЫТИЯ CANVAS — рисование маски
+// ═══════════════════════════════════════════════
+function isMaskMode(){
+  return typeof S.selId==='string'&&S.selId.startsWith('mask:');
+}
+
+function getMaskTarget(){
+  if(!isMaskMode()) return null;
+  const tid=+S.selId.split(':')[1];
+  return S.layers.find(l=>l.id===tid);
+}
+
+function maskPaint(e){
+  const ml=getMaskTarget(); if(!ml||!ml.mask) return;
+  const{x,y}=cxy(e);
+  const mc=ml.mask.maskCanvas;
+  const mctx=mc.getContext('2d');
+  const scx=mc.width/cvs.width, scy=mc.height/cvs.height;
+  mctx.globalCompositeOperation='source-over';
+  // Белый восстанавливает, чёрный скрывает
+  mctx.fillStyle=brushColor;
+  mctx.beginPath();
+  mctx.arc(x*scx, y*scy, (brushSize*scx)/2, 0, Math.PI*2);
+  mctx.fill();
+  redrawMain();
+}
+
+// Патчим ТОЛЬКО canvas events — без переопределения функций
+cvs.removeEventListener('mousedown',onDown);
+cvs.removeEventListener('mousemove',onMove);
+cvs.removeEventListener('mouseup',onUp);
+cvs.removeEventListener('mouseleave',onUp);
+cvs.removeEventListener('touchstart',onDown);
+cvs.removeEventListener('touchmove',onMove);
+cvs.removeEventListener('touchend',onUp);
+
+cvs.addEventListener('mousedown', e=>{
+  if(isMaskMode()){ maskDrawing=true; maskPaint(e); }
+  else onDown(e);
+});
+cvs.addEventListener('mousemove', e=>{
+  if(maskDrawing&&isMaskMode()){ maskPaint(e); return; }
+  onMove(e);
+});
+cvs.addEventListener('mouseup', e=>{
+  if(maskDrawing){ maskDrawing=false; histSnapshot(); return; }
+  onUp(e);
+});
+cvs.addEventListener('mouseleave', e=>{
+  if(maskDrawing){ maskDrawing=false; histSnapshot(); return; }
+  onUp(e);
+});
+cvs.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const t=te(e);
+  if(isMaskMode()){ maskDrawing=true; maskPaint(t); }
+  else onDown(t);
+},{passive:false});
+cvs.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const t=te(e);
+  if(maskDrawing&&isMaskMode()){ maskPaint(t); return; }
+  onMove(t);
+},{passive:false});
+cvs.addEventListener('touchend',e=>{
+  const t=te(e);
+  if(maskDrawing){ maskDrawing=false; histSnapshot(); return; }
+  onUp(t);
+});
+
+// ═══════════════════════════════════════════════
+// ПЕРЕХВАТ selLayer, upd, addLayer, delSel
+// для снятия снимков истории (БЕЗ рекурсии)
+// ═══════════════════════════════════════════════
+
+// Перехватываем upd: снимаем снимок при изменении важных свойств
+// (не на каждый ввод — только при потере фокуса или drag end)
+let _updTimer=null;
+const _origUpd=upd;
+// upd уже определён выше, просто добавляем debounced snapshot
+const _superUpd=function(k,v){
+  _origUpd(k,v);
+  clearTimeout(_updTimer);
+  _updTimer=setTimeout(histSnapshot,600); // снимок через 600мс после последнего изменения
+};
+// Переопределяем упрощённо через обёртку для oninput
+window._updWithHist=function(k,v){_superUpd(k,v);};
+
+// addLayer — снимок после добавления
+const _origAddLayer=addLayer;
+window.addLayer=function(){
+  const l=makeLayer(); S.layers.push(l);
+  selTextLayer(l.id); renderLL(); redrawMain();
+  histSnapshot();
+};
+
+// delSel — снимок после удаления (работает для текста, маска удаляется через delMask/delMaskOf)
+const _origDelSel=delSel;
+window.delSel=function(){
+  if(!S.selId) return;
+  if(isMaskMode()){ delMask(); return; }
+  S.layers=S.layers.filter(l=>l.id!==S.selId);
+  S.selId=null; hide('ppanel');
+  renderLL(); redrawMain(); histSnapshot();
+};
+
+window.deleteLayer=function(id){
+  S.layers=S.layers.filter(l=>l.id!==id);
+  if(S.selId===id||S.selId==='mask:'+id){ S.selId=null; maskTargetId=null; hide('ppanel'); hide('mask-panel'); }
+  renderLL(); redrawMain(); histSnapshot();
+};
+
+// Обновляем selLayer: теперь тоже учитывает mask-mode
+const _origSelLayer=selLayer;
+window.selLayer=function(id){
+  S.selId=id; maskTargetId=null;
+  hide('mask-panel');
+  const l=S.layers.find(x=>x.id===id);
+  if(l){fillProps(l);show('ppanel');}
+  else hide('ppanel');
+  redrawMain();
+};
+
+// renderLL переопределяем (была выше, теперь заменяем)
+// — уже определена в MASK-блоке выше, ничего не делаем
+
+// ═══════════════════════════════════════════════
+// ПЕРЕХВАТ redraw — перенаправляем на redrawMain
+// ═══════════════════════════════════════════════
+// redraw() уже определена как функция в основном коде.
+// Чтобы не было конфликта — заменяем через window
+const _rawRedraw=redraw;
+window.redraw=function(){ redrawMain(); };
+
+// ═══════════════════════════════════════════════
+// ОБНОВЛЯЕМ renderFinal — применяем маски при сохранении
+// ═══════════════════════════════════════════════
+async function renderFinalWithMasks(srcBitmap){
+  if(!srcBitmap&&S.layers.length===0) return null;
   const src=srcBitmap;
-  const ow=src.width, oh=src.height;
+  const ow=src?src.width:cvs.width;
+  const oh=src?src.height:cvs.height;
   const sc=ow/cvs.width;
-  const mc=document.createElement('canvas'); mc.width=ow; mc.height=oh;
-  const mctx2=mc.getContext('2d');
-  mctx2.drawImage(await createImageBitmap(blob),0,0);
-  mctx2.globalCompositeOperation='destination-in';
-  mctx2.drawImage(maskL.maskCanvas,0,0,ow,oh);
-  return new Promise(res=>mc.toBlob(res,'image/jpeg',.95));
+  const fc=document.createElement('canvas'); fc.width=ow; fc.height=oh;
+  const fc2=fc.getContext('2d');
+  if(src) fc2.drawImage(src,0,0,ow,oh);
+  else{ fc2.fillStyle='#0a0a12'; fc2.fillRect(0,0,ow,oh); }
+
+  for(const l of S.layers){
+    if(l.mask&&l.mask.maskCanvas){
+      // Рисуем текст в offscreen, применяем маску
+      const off2=document.createElement('canvas'); off2.width=ow; off2.height=oh;
+      const o2=off2.getContext('2d');
+      // Рисуем текст с масштабом
+      o2.save();
+      o2.translate(l.x*sc,l.y*sc); o2.rotate(l.rot||0); o2.globalAlpha=(l.opacity||100)/100;
+      const font=l.otFont||null, sz=l.size*sc;
+      const lhpx=sz*(l.lineH||1.2);
+      const lines=(l.text||'').split('\n');
+      const totalH=lhpx*lines.length;
+      const widths=lines.map(ln=>mW(o2,font,ln,sz,l));
+      setShadow(o2,l.shadow||'soft');
+      let cy=-totalH/2+sz*.82;
+      lines.forEach((ln,i)=>{
+        const lw=widths[i]; let ox=0;
+        if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+        if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(o2);}
+        else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;o2.font=ff;o2.fillStyle=l.color||'#fff';o2.textAlign=l.align||'center';o2.textBaseline='alphabetic';o2.fillText(ln,0,cy);}
+        cy+=lhpx;
+      });
+      o2.restore();
+      // Применяем маску
+      o2.globalCompositeOperation='destination-in';
+      o2.drawImage(l.mask.maskCanvas,0,0,ow,oh);
+      fc2.drawImage(off2,0,0);
+    } else {
+      // Обычный слой без маски
+      fc2.save();
+      fc2.translate(l.x*sc,l.y*sc); fc2.rotate(l.rot||0); fc2.globalAlpha=(l.opacity||100)/100;
+      const font=l.otFont||null, sz=l.size*sc;
+      const lhpx=sz*(l.lineH||1.2);
+      const lines=(l.text||'').split('\n');
+      const totalH=lhpx*lines.length;
+      const widths=lines.map(ln=>mW(fc2,font,ln,sz,l));
+      setShadow(fc2,l.shadow||'soft');
+      let cy=-totalH/2+sz*.82;
+      lines.forEach((ln,i)=>{
+        const lw=widths[i]; let ox=0;
+        if(l.align==='center') ox=-lw/2; else if(l.align==='right') ox=-lw;
+        if(font){const p=font.getPath(ln,ox,cy,sz);p.fill=l.color||'#fff';p.draw(fc2);}
+        else{let ff=sz+'px serif';if(l.bold&&l.italic)ff='bold italic '+ff;else if(l.bold)ff='bold '+ff;else if(l.italic)ff='italic '+ff;fc2.font=ff;fc2.fillStyle=l.color||'#fff';fc2.textAlign=l.align||'center';fc2.textBaseline='alphabetic';fc2.fillText(ln,0,cy);}
+        cy+=lhpx;
+      });
+      fc2.restore();
+    }
+  }
+  return new Promise(res=>fc.toBlob(res,'image/jpeg',.95));
 }
 
 // ═══════════════════════════════════════════════
@@ -2696,7 +2916,7 @@ async function renderFinal(srcBitmap){
 // ═══════════════════════════════════════════════
 initCanvas();
 loadFontData();
-setTimeout(()=>{ histSnapshot(); },200);
+setTimeout(()=>{ histSnapshot(); histBtns(); },300);
 updBrush();
 </script>
 </body>
