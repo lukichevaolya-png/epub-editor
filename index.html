@@ -434,13 +434,24 @@ textarea::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius
 /* Slider */
 input[type=range]{
   -webkit-appearance:none;appearance:none;
-  width:100%;height:3px;
-  background:rgba(255,255,255,.1);border-radius:2px;outline:none;
+  width:100%;height:20px;          /* большая зона касания */
+  background:transparent;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:4px;border-radius:2px;background:rgba(255,255,255,.12);
+}
+input[type=range]::-moz-range-track{
+  height:4px;border-radius:2px;background:rgba(255,255,255,.12);
 }
 input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
-  background:var(--text);cursor:pointer;
-  box-shadow:0 1px 4px rgba(0,0,0,.5);
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:var(--text);cursor:pointer;margin-top:-9px;
+  box-shadow:0 1px 5px rgba(0,0,0,.6);
+  border:2px solid rgba(0,0,0,.15);
+}
+input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;border:2px solid rgba(0,0,0,.15);
+  background:var(--text);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.6);
 }
 .slider-row{display:flex;align-items:center;gap:7px;}
 .slider-row input[type=range]{flex:1;margin:0;}
@@ -1754,7 +1765,7 @@ function setShadow(c,t){
   if(t==='glow'){c.shadowColor='rgba(10,132,255,.7)';c.shadowBlur=22;c.shadowOffsetX=0;c.shadowOffsetY=0;}
 }
 
-const HR=7;
+const HR=10;
 function drawHandles(l,bw,bh){
   const hw=bw/2+12,hh=bh/2+10;
   ctx.save();
@@ -2359,79 +2370,7 @@ function mgDrawHandles(l,bw,bh){
   ctx.restore();
 }
 
-// Взаимодействие с canvas обложки объединения — полная копия логики редактора
-const mgCvs=document.getElementById('mg-cvs');
-if(mgCvs){
-  let mgDrag=null;
-  function mgCxy(e){const r=mgCvs.getBoundingClientRect();const sx=mgCvs.width/r.width,sy=mgCvs.height/r.height;return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
-
-  function mgOnDown(e){
-    const{x,y}=mgCxy(e);
-    const sel=S.mg.layers.find(l=>l.id===S.mg.selId);
-    if(sel){
-      const{x:lx,y:ly}=toLoc(sel,x,y);
-      const h=hitH(sel,lx,ly);
-      if(h){
-        if(h.t==='rot'){mgDrag={t:'rot',l:sel,a0:Math.atan2(y-sel.y,x-sel.x)-(sel.rot||0)};}
-        else{
-          const opp=[2,3,0,1][h.ci];
-          const oh=getHandles(sel)[opp];
-          const ow=toWorld(sel,oh.lx,oh.ly);
-          mgDrag={t:'sc',l:sel,ow,d0:Math.hypot(x-ow.x,y-ow.y),s0:sel.size,bw0:sel._bw||20};
-        }
-        return;
-      }
-    }
-    for(let i=S.mg.layers.length-1;i>=0;i--){
-      const l=S.mg.layers[i];
-      if(hitL(l,x,y)){mgSelLayer(l.id);mgDrag={t:'mv',l,ox:x-l.x,oy:y-l.y};return;}
-    }
-    mgSelLayer(null);
-  }
-
-  function mgOnMove(e){
-    if(!mgDrag) return;
-    const{x,y}=mgCxy(e);
-    if(mgDrag.t==='mv'){
-      mgDrag.l.x=x-mgDrag.ox; mgDrag.l.y=y-mgDrag.oy;
-    } else if(mgDrag.t==='rot'){
-      mgDrag.l.rot=Math.atan2(y-mgDrag.l.y,x-mgDrag.l.x)-mgDrag.a0;
-    } else if(mgDrag.t==='sc'){
-      const dist=Math.hypot(x-mgDrag.ow.x,y-mgDrag.ow.y);
-      if(mgDrag.d0<1) return;
-      const r=dist/mgDrag.d0;
-      mgDrag.l.size=Math.max(4,Math.round(mgDrag.s0*r));
-      mgDrag.l._bw=mgDrag.bw0*r;
-      mgDrag.l.x=(mgDrag.ow.x+x)/2; mgDrag.l.y=(mgDrag.ow.y+y)/2;
-      const ps=document.getElementById('mg-psize');
-      const psr=document.getElementById('mg-psize_r');
-      if(ps&&mgDrag.l.id===S.mg.selId){ ps.value=mgDrag.l.size; if(psr) psr.value=Math.min(mgDrag.l.size,300); }
-    }
-    mgRedraw();
-  }
-
-  function mgOnUp(){ mgDrag=null; }
-
-  mgCvs.addEventListener('mousedown',mgOnDown);
-  mgCvs.addEventListener('mousemove',mgOnMove);
-  mgCvs.addEventListener('mouseup',mgOnUp);
-  mgCvs.addEventListener('mouseleave',mgOnUp);
-  mgCvs.addEventListener('dblclick',e=>{
-    const{x,y}=mgCxy(e);
-    for(let i=S.mg.layers.length-1;i>=0;i--){
-      if(hitL(S.mg.layers[i],x,y)){
-        mgSelLayer(S.mg.layers[i].id);
-        const t=prompt('Изменить текст:',S.mg.layers[i].text);
-        if(t!==null){S.mg.layers[i].text=t;const el=document.getElementById('mg-ptxt');if(el)el.value=t;mgRenderLL();mgRedraw();}
-        return;
-      }
-    }
-  });
-  // Touch
-  mgCvs.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0]||e.changedTouches[0];mgOnDown({clientX:t.clientX,clientY:t.clientY});},{passive:false});
-  mgCvs.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0]||e.changedTouches[0];mgOnMove({clientX:t.clientX,clientY:t.clientY});},{passive:false});
-  mgCvs.addEventListener('touchend',e=>{mgOnUp();},{passive:false});
-}
+// (старый обработчик mgCvs удалён — используется единый ниже)
 
 function mgAddLayer(){
   const l=mgMakeLayer(); S.mg.layers.push(l);
@@ -2937,7 +2876,12 @@ function mgRedraw(){
       if(l.id===S.mg.selId) mgDrawHandles(l);
     }
   });
+  // Курсор кисти в режиме маски
+  if(mgIsMaskMode() && typeof _mgBrushCursor!=='undefined' && _mgBrushCursor.show){
+    drawBrushCursor(c3, c2, _mgBrushCursor.x, _mgBrushCursor.y, mgBrushSize, mgBrushColor);
+  }
 }
+var _mgBrushCursor={x:0,y:0,show:false};
 
 function mgDrawLayerToCtx(tctx,l){
   tctx.save();
@@ -3021,10 +2965,10 @@ function mgDelMaskOf(lid){
   mgRenderLL(); mgRedraw(); mgHistSnapshot();
 }
 
-// mg canvas events
+// mg canvas events — единый обработчик (текст: move/scale/rotate, маска: рисование)
 const mgCvs2=document.getElementById('mg-cvs');
 if(mgCvs2){
-  let mgDrag=null;
+  let mgDrag=null, mgMaskDrawing2=false;
   function mgCxy(e){const r=mgCvs2.getBoundingClientRect();const sx=(S.mg.cvs?.width||1)/r.width,sy=(S.mg.cvs?.height||1)/r.height;return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
 
   function mgMaskPaint(e){
@@ -3039,45 +2983,83 @@ if(mgCvs2){
     mgRedraw();
   }
 
-  mgCvs2.addEventListener('mousedown',e=>{
-    if(mgIsMaskMode()){mgMaskDrawing2=true;mgMaskPaint(e);return;}
-    // drag
+  function mgDown(e){
+    // Режим маски — только рисуем, НЕ трогаем слой текста
+    if(mgIsMaskMode()){ mgMaskDrawing2=true; const p=mgCxy(e);_mgBrushCursor.x=p.x;_mgBrushCursor.y=p.y;_mgBrushCursor.show=true; mgMaskPaint(e); return; }
     const{x,y}=mgCxy(e);
+    const sel=S.mg.layers.find(l=>l.id===S.mg.selId);
+    if(sel){
+      const{x:lx,y:ly}=toLoc(sel,x,y);
+      const h=hitH(sel,lx,ly);
+      if(h){
+        if(h.t==='rot'){mgDrag={t:'rot',l:sel,a0:Math.atan2(y-sel.y,x-sel.x)-(sel.rot||0)};}
+        else{
+          const opp=[2,3,0,1][h.ci];
+          const oh=getHandles(sel)[opp];
+          const ow=toWorld(sel,oh.lx,oh.ly);
+          mgDrag={t:'sc',l:sel,ow,d0:Math.hypot(x-ow.x,y-ow.y),s0:sel.size,bw0:sel._bw||20};
+        }
+        return;
+      }
+    }
     for(let i=S.mg.layers.length-1;i>=0;i--){
       const l=S.mg.layers[i];
-      if(hitL(l,x,y)){mgSelLayerFull(l.id);mgDrag={l,ox:x-l.x,oy:y-l.y};return;}
+      if(hitL(l,x,y)){mgSelLayerFull(l.id);mgDrag={t:'mv',l,ox:x-l.x,oy:y-l.y};return;}
     }
     mgSelLayerFull(null);
-  });
-  let mgMaskDrawing2=false;
-  mgCvs2.addEventListener('mousemove',e=>{
-    if(mgMaskDrawing2&&mgIsMaskMode()){mgMaskPaint(e);return;}
+  }
+
+  function mgMove(e){
+    if(mgIsMaskMode()){
+      const p=mgCxy(e);_mgBrushCursor.x=p.x;_mgBrushCursor.y=p.y;_mgBrushCursor.show=true;
+      if(mgMaskDrawing2){mgMaskPaint(e);return;}
+      mgRedraw();return;
+    }
     if(!mgDrag) return;
-    const{x,y}=mgCxy(e); mgDrag.l.x=x-mgDrag.ox; mgDrag.l.y=y-mgDrag.oy; mgRedraw();
-  });
-  mgCvs2.addEventListener('mouseup',()=>{
+    const{x,y}=mgCxy(e);
+    if(mgDrag.t==='mv'){
+      mgDrag.l.x=x-mgDrag.ox; mgDrag.l.y=y-mgDrag.oy;
+    } else if(mgDrag.t==='rot'){
+      mgDrag.l.rot=Math.atan2(y-mgDrag.l.y,x-mgDrag.l.x)-mgDrag.a0;
+    } else if(mgDrag.t==='sc'){
+      const dist=Math.hypot(x-mgDrag.ow.x,y-mgDrag.ow.y);
+      if(mgDrag.d0<1) return;
+      const r=dist/mgDrag.d0;
+      mgDrag.l.size=Math.max(4,Math.round(mgDrag.s0*r));
+      mgDrag.l._bw=mgDrag.bw0*r;
+      mgDrag.l.x=(mgDrag.ow.x+x)/2; mgDrag.l.y=(mgDrag.ow.y+y)/2;
+      const ps=document.getElementById('mg-psize');
+      const psr=document.getElementById('mg-psize_r');
+      if(ps&&mgDrag.l.id===S.mg.selId){ ps.value=mgDrag.l.size; if(psr) psr.value=Math.min(mgDrag.l.size,300); }
+    }
+    mgRedraw();
+  }
+
+  function mgUp(){
     if(mgMaskDrawing2){mgMaskDrawing2=false;mgHistSnapshot();return;}
     if(mgDrag){mgDrag=null;mgHistSnapshot();}
-  });
-  mgCvs2.addEventListener('mouseleave',()=>{
-    if(mgMaskDrawing2){mgMaskDrawing2=false;mgHistSnapshot();return;}
-    mgDrag=null;
-  });
+  }
+
+  mgCvs2.addEventListener('mousedown',mgDown);
+  mgCvs2.addEventListener('mousemove',mgMove);
+  mgCvs2.addEventListener('mouseup',mgUp);
+  mgCvs2.addEventListener('mouseleave',mgUp);
   mgCvs2.addEventListener('dblclick',e=>{
+    if(mgIsMaskMode()) return;
     const{x,y}=mgCxy(e);
     for(let i=S.mg.layers.length-1;i>=0;i--){
       if(hitL(S.mg.layers[i],x,y)){
         mgSelLayerFull(S.mg.layers[i].id);
         const t=prompt('Изменить текст:',S.mg.layers[i].text);
-        if(t!==null){S.mg.layers[i].text=t;mgRenderLL();mgRedraw();mgHistSnapshot();}
+        if(t!==null){S.mg.layers[i].text=t;const el=document.getElementById('mg-ptxt');if(el)el.value=t;mgRenderLL();mgRedraw();mgHistSnapshot();}
         return;
       }
     }
   });
-  // Touch
-  mgCvs2.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];mgCvs2.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
-  mgCvs2.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];mgCvs2.dispatchEvent(new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
-  mgCvs2.addEventListener('touchend',()=>mgCvs2.dispatchEvent(new MouseEvent('mouseup')));
+  // Touch — напрямую, без dispatchEvent (надёжнее на мобильном)
+  mgCvs2.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0]||e.changedTouches[0];mgDown({clientX:t.clientX,clientY:t.clientY});},{passive:false});
+  mgCvs2.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0]||e.changedTouches[0];mgMove({clientX:t.clientX,clientY:t.clientY});},{passive:false});
+  mgCvs2.addEventListener('touchend',e=>{mgUp();},{passive:false});
 }
 
 // Обновляем mgUpd с историей
@@ -3341,7 +3323,29 @@ function redrawMain(){
   S.layers.forEach(l=>{
     drawTextLayerWithMask(l, l.id===S.selId);
   });
+  // Курсор кисти в режиме маски
+  if(isMaskMode() && typeof _brushCursor!=='undefined' && _brushCursor.show){
+    drawBrushCursor(ctx, cvs, _brushCursor.x, _brushCursor.y, brushSize, brushColor);
+  }
 }
+
+// Видимый круг кисти (x,y и size уже в координатах canvas)
+function drawBrushCursor(c, canvasEl, x, y, sizePx, col){
+  const r = sizePx/2;
+  c.save();
+  c.beginPath();
+  c.arc(x, y, r, 0, Math.PI*2);
+  c.strokeStyle = col==='black' ? 'rgba(255,80,80,.95)' : 'rgba(80,180,255,.95)';
+  c.lineWidth = 2;
+  c.stroke();
+  c.beginPath();
+  c.arc(x, y, r, 0, Math.PI*2);
+  c.strokeStyle = 'rgba(0,0,0,.5)';
+  c.lineWidth = 0.8;
+  c.stroke();
+  c.restore();
+}
+var _brushCursor = {x:0,y:0,show:false};
 
 // Рисуем текстовый слой, применяя маску если есть
 function drawTextLayerWithMask(l, sel){
@@ -3462,11 +3466,12 @@ cvs.removeEventListener('touchmove',onMove);
 cvs.removeEventListener('touchend',onUp);
 
 cvs.addEventListener('mousedown', e=>{
-  if(isMaskMode()){ maskDrawing=true; maskPaint(e); }
+  if(isMaskMode()){ maskDrawing=true; const p=cxy(e); _brushCursor.x=p.x;_brushCursor.y=p.y;_brushCursor.show=true; maskPaint(e); }
   else onDown(e);
 });
 cvs.addEventListener('mousemove', e=>{
-  if(maskDrawing&&isMaskMode()){ maskPaint(e); return; }
+  if(isMaskMode()){ const p=cxy(e); _brushCursor.x=p.x;_brushCursor.y=p.y;_brushCursor.show=true;
+    if(maskDrawing){ maskPaint(e); return; } redrawMain(); return; }
   onMove(e);
 });
 cvs.addEventListener('mouseup', e=>{
@@ -3474,24 +3479,26 @@ cvs.addEventListener('mouseup', e=>{
   onUp(e);
 });
 cvs.addEventListener('mouseleave', e=>{
+  if(isMaskMode()){ _brushCursor.show=false; redrawMain(); }
   if(maskDrawing){ maskDrawing=false; histSnapshot(); return; }
   onUp(e);
 });
 cvs.addEventListener('touchstart',e=>{
   e.preventDefault();
   const t=te(e);
-  if(isMaskMode()){ maskDrawing=true; maskPaint(t); }
+  if(isMaskMode()){ maskDrawing=true; const p=cxy(t);_brushCursor.x=p.x;_brushCursor.y=p.y;_brushCursor.show=true; maskPaint(t); }
   else onDown(t);
 },{passive:false});
 cvs.addEventListener('touchmove',e=>{
   e.preventDefault();
   const t=te(e);
-  if(maskDrawing&&isMaskMode()){ maskPaint(t); return; }
+  if(isMaskMode()){ const p=cxy(t);_brushCursor.x=p.x;_brushCursor.y=p.y;_brushCursor.show=true;
+    if(maskDrawing){ maskPaint(t); return; } redrawMain(); return; }
   onMove(t);
 },{passive:false});
 cvs.addEventListener('touchend',e=>{
   const t=te(e);
-  if(maskDrawing){ maskDrawing=false; histSnapshot(); return; }
+  if(maskDrawing){ maskDrawing=false; _brushCursor.show=false; histSnapshot(); redrawMain(); return; }
   onUp(t);
 });
 
